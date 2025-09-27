@@ -1,102 +1,246 @@
-# [![Go Reference](https://pkg.go.dev/badge/github.com/go-skynet/go-llama.cpp.svg)](https://pkg.go.dev/github.com/go-skynet/go-llama.cpp) go-llama.cpp
+# [![Go Reference](https://pkg.go.dev/badge/github.com/tcpipuk/go-llama.cpp.svg)](https://pkg.go.dev/github.com/tcpipuk/go-llama.cpp) go-llama.cpp
 
-[LLama.cpp](https://github.com/ggerganov/llama.cpp) golang bindings.
+Go bindings for [llama.cpp](https://github.com/ggerganov/llama.cpp), the popular C++ library for
+running large language models locally. This lets you integrate LLM inference directly into Go
+applications with hardware acceleration support.
 
-The go-llama.cpp bindings are high level, as such most of the work is kept into the C/C++ code to avoid any extra computational cost, be more performant and lastly ease out maintenance, while keeping the usage as simple as possible.
+This is an active fork of [go-skynet/go-llama.cpp](https://github.com/go-skynet/go-llama.cpp),
+which appears unmaintained. I'm working to keep it current with the latest llama.cpp developments
+and Go best practices.
 
-Check out [this](https://about.sourcegraph.com/blog/go/gophercon-2018-adventures-in-cgo-performance) and [this](https://www.cockroachlabs.com/blog/the-cost-and-complexity-of-cgo/) write-ups which summarize the impact of a low-level interface which calls C functions from Go.
+The bindings use CGO to bridge Go and C++, keeping computational work in optimised C++ code for
+best performance whilst providing a clean Go API.
 
-If you are looking for an high-level OpenAI compatible API, check out [here](https://github.com/go-skynet/llama-cli).
-
-## Attention!
-
-Since https://github.com/go-skynet/go-llama.cpp/pull/180 is merged, now go-llama.cpp is not anymore compatible with `ggml` format, but it works ONLY with the new `gguf` file format. See also the upstream PR: https://github.com/ggerganov/llama.cpp/pull/2398.
-
-If you need to use the `ggml` format, use the https://github.com/go-skynet/go-llama.cpp/releases/tag/pre-gguf tag.
-
-## Usage
-
-Note: This repository uses git submodules to keep track of [LLama.cpp](https://github.com/ggerganov/llama.cpp).
-
-Clone the repository locally:
+## Quick start
 
 ```bash
-git clone --recurse-submodules https://github.com/go-skynet/go-llama.cpp
-```
-
-To build the bindings locally, run:
-
-```
+# Clone with submodules
+git clone --recurse-submodules https://github.com/tcpipuk/go-llama.cpp
 cd go-llama.cpp
+
+# Build the native library
+make libbinding.a
+
+# Test with an example
+LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run ./examples -m "/path/to/model.gguf" -t 4
+```
+
+For systems without C++ compilers (like TrueNAS), see the [Docker workflow](#docker-development).
+
+## Installation
+
+### Requirements
+
+- Go 1.25+
+- C++ compiler (GCC/Clang) or Docker
+- Git with submodule support
+
+### Setup
+
+The library depends on llama.cpp as a git submodule, so clone with `--recurse-submodules`:
+
+```bash
+git clone --recurse-submodules https://github.com/tcpipuk/go-llama.cpp
+cd go-llama.cpp
+```
+
+If you've already cloned without submodules, initialise them:
+
+```bash
+git submodule update --init --recursive
+```
+
+Build the native library:
+
+```bash
 make libbinding.a
 ```
 
-Now you can run the example with:
+### Docker development
 
-```
-LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run ./examples -m "/model/path/here" -t 14
+For systems without local C++ compilers, use Docker for the build:
+
+```bash
+# Build the native library
+docker run --rm -v $(pwd):/workspace -w /workspace \
+  git.tomfos.tr/tom/act-runner:ubuntu-rolling \
+  bash -c "apt-get update && apt-get install -y cmake build-essential && make libbinding.a"
+
+# Then use golang container for Go operations
+docker run --rm -v $(pwd):/workspace -w /workspace golang:1.25.1-trixie \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace go build ."
 ```
 
-## Acceleration
+## Hardware acceleration
 
 ### OpenBLAS
 
-To build and run with OpenBLAS, for example:
+For CPU acceleration with OpenBLAS:
 
-```
+```bash
 BUILD_TYPE=openblas make libbinding.a
-CGO_LDFLAGS="-lopenblas" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run -tags openblas ./examples -m "/model/path/here" -t 14
+CGO_LDFLAGS="-lopenblas" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD \
+  go run -tags openblas ./examples -m "/path/to/model.gguf" -t 4
 ```
 
-### CuBLAS
+### CUDA (NVIDIA)
 
-To build with CuBLAS:
+For GPU acceleration with CUDA:
 
-```
+```bash
 BUILD_TYPE=cublas make libbinding.a
-CGO_LDFLAGS="-lcublas -lcudart -L/usr/local/cuda/lib64/" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run ./examples -m "/model/path/here" -t 14
+CGO_LDFLAGS="-lcublas -lcudart -L/usr/local/cuda/lib64/" \
+  LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD \
+  go run ./examples -m "/path/to/model.gguf" -t 4
 ```
 
-### ROCM
+### ROCm (AMD)
 
-To build with ROCM (HIPBLAS):
+For AMD GPU acceleration:
 
-```
+```bash
 BUILD_TYPE=hipblas make libbinding.a
-CC=/opt/rocm/llvm/bin/clang CXX=/opt/rocm/llvm/bin/clang++ CGO_LDFLAGS="-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run ./examples -m "/model/path/here" -ngl 64 -t 32
+CC=/opt/rocm/llvm/bin/clang CXX=/opt/rocm/llvm/bin/clang++ \
+  CGO_LDFLAGS="-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas" \
+  LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD \
+  go run ./examples -m "/path/to/model.gguf" -ngl 64 -t 32
+```
+
+### Metal (Apple Silicon)
+
+For Apple Silicon acceleration:
+
+```bash
+BUILD_TYPE=metal make libbinding.a
+CGO_LDFLAGS="-framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders" \
+  LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go build ./examples/main.go
+cp build/bin/ggml-metal.metal .
+./main -m "/path/to/model.gguf" -t 1 -ngl 1
 ```
 
 ### OpenCL
 
-```
+For OpenCL acceleration:
+
+```bash
 BUILD_TYPE=clblas CLBLAS_DIR=... make libbinding.a
-CGO_LDFLAGS="-lOpenCL -lclblast -L/usr/local/lib64/" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run ./examples -m "/model/path/here" -t 14
+CGO_LDFLAGS="-lOpenCL -lclblast -L/usr/local/lib64/" \
+  LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD \
+  go run ./examples -m "/path/to/model.gguf" -t 4
 ```
 
+You should see output like this when OpenCL is working:
 
-You should see something like this from the output when using the GPU:
-
-```
+```text
 ggml_opencl: selecting platform: 'Intel(R) OpenCL HD Graphics'
 ggml_opencl: selecting device: 'Intel(R) Graphics [0x46a6]'
 ggml_opencl: device FP16 support: true
 ```
 
-## GPU offloading
+## Usage
 
-### Metal (Apple Silicon)
+The API uses functional options for configuration:
 
+```go
+package main
+
+import (
+    "fmt"
+    llama "github.com/tcpipuk/go-llama.cpp"
+)
+
+func main() {
+    // Load model with options
+    model, err := llama.New(
+        "/path/to/model.gguf",
+        llama.EnableF16Memory,
+        llama.SetContext(2048),
+        llama.SetGPULayers(32),
+    )
+    if err != nil {
+        panic(err)
+    }
+    defer model.Free()
+
+    // Generate text
+    response, err := model.Predict("Hello world", llama.SetTokens(50))
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(response)
+}
 ```
-BUILD_TYPE=metal make libbinding.a
-CGO_LDFLAGS="-framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders" LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go build ./examples/main.go
-cp build/bin/ggml-metal.metal .
-./main -m "/model/path/here" -t 1 -ngl 1
+
+Remember to set the CGO environment variables when running:
+
+```bash
+LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD go run your-program.go
 ```
 
-Enjoy!
+## Architecture
 
-The documentation is available [here](https://pkg.go.dev/github.com/go-skynet/go-llama.cpp) and the full example code is [here](https://github.com/go-skynet/go-llama.cpp/blob/master/examples/main.go).
+The library bridges Go and C++ using CGO. Most computation stays in the optimised llama.cpp C++
+code, with Go providing a clean API layer. This approach minimises CGO overhead whilst maximising
+performance.
 
-## License
+Key components:
+
+- `binding.cpp` / `binding.h` - CGO interface to llama.cpp
+- `llama.go` - Main Go API with the LLama struct
+- `options.go` - Configuration using functional options pattern
+- `llama.cpp/` - Git submodule containing upstream llama.cpp
+
+## Development
+
+### Testing
+
+Run tests (requires a GGUF model file):
+
+```bash
+# Set test model and run
+TEST_MODEL="/path/to/test.gguf" make test
+
+# Or manually with Ginkgo
+LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD \
+  go run github.com/onsi/ginkgo/v2/ginkgo --label-filter="!gpu" -v ./...
+
+# In Docker
+docker run --rm -v $(pwd):/workspace -w /workspace golang:1.25.1-trixie \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace \
+    go run github.com/onsi/ginkgo/v2/ginkgo --label-filter=\"!gpu\" -v ./..."
+```
+
+### Code quality
+
+```bash
+# Format and vet
+go fmt ./...
+go vet ./...
+
+# Run pre-commit checks
+prek run --all-files
+```
+
+### Cleaning
+
+```bash
+make clean
+```
+
+## Compatibility
+
+This library uses the GGUF model format, which is the standard for llama.cpp. If you need the
+legacy GGML format, use the
+[pre-gguf tag](https://github.com/tcpipuk/go-llama.cpp/releases/tag/pre-gguf).
+
+## Documentation
+
+Full API documentation is available at
+[pkg.go.dev](https://pkg.go.dev/github.com/tcpipuk/go-llama.cpp).
+
+Example code is in [examples/main.go](https://github.com/tcpipuk/go-llama.cpp/blob/master/examples/main.go).
+
+## Licence
 
 MIT

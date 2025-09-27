@@ -3,8 +3,8 @@ package llama_test
 import (
 	"os"
 
-	"github.com/go-skynet/go-llama.cpp"
-	. "github.com/go-skynet/go-llama.cpp"
+	"github.com/tcpipuk/go-llama.cpp"
+	. "github.com/tcpipuk/go-llama.cpp"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -39,6 +39,7 @@ var _ = Describe("LLama binding", func() {
 			}
 
 			model, err := getModel()
+		Expect(err).ToNot(HaveOccurred())
 			text, err := model.Predict(`[INST] Answer to the following question:
 how much is 2+2?
 [/INST]`)
@@ -84,6 +85,7 @@ how much is 2+2?
 			}
 
 			model, err := getModel()
+		Expect(err).ToNot(HaveOccurred())
 			l, tokens, err := model.TokenizeString("A STRANGE GAME.\nTHE ONLY WINNING MOVE IS NOT TO PLAY.\n\nHOW ABOUT A NICE GAME OF CHESS?",
 				SetRopeFreqBase(10000.0), SetRopeFreqScale(1))
 
@@ -110,6 +112,7 @@ how much is 2+2?
 			}
 
 			model, err := getModel()
+		Expect(err).ToNot(HaveOccurred())
 			text, err := model.Predict(`[INST] Answer to the following question:
 how much is 2+2?
 [/INST]`)

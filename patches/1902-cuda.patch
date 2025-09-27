@@ -66,11 +66,11 @@ index 2597ba0..e42ae73 100644
 +    }
 +
 +    lparams->model = fname;
-+    if (maingpu[0] != '\0') { 
++    if (maingpu[0] != '\0') {
 +        lparams->main_gpu = std::stoi(maingpu);
 +    }
-+ 
-+    if (tensorsplit[0] != '\0') { 
++
++    if (tensorsplit[0] != '\0') {
 +        std::string arg_next = tensorsplit;
 +            // split string by , and /
 +            const std::regex regex{R"([,/]+)"};
@@ -84,7 +84,7 @@ index 2597ba0..e42ae73 100644
 +                } else {
 +                    lparams->tensor_split[i] = 0.0f;
 +                }
-+            }  
++            }
 +    }
 +
 +    lparams->n_batch      = n_batch;

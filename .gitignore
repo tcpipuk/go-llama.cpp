@@ -10,6 +10,7 @@ prepare
 .idea
 .vscode
 Thumbs.db
+CLAUDE.md
 
-# model files downloaded by the test script
+# local testing files
 ggllm-test-model.bin

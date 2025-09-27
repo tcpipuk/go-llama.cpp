@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
-        with: 
+        with:
           submodules: true
       - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4

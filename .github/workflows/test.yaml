@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-        with: 
+        with:
           submodules: true
       - name: Dependencies
         run: |
@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-        with: 
+        with:
           submodules: true
       - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
@@ -61,7 +61,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-        with: 
+        with:
           submodules: true
       - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4

@@ -43,10 +43,10 @@ int get_embeddings(void* params_ptr, void* state_pr, float * res_embeddings) {
     if (params.seed <= 0) {
         params.seed = time(NULL);
     }
-    
+
     // no need for a rng
     // std::mt19937 rng(params.seed);
-  
+
     int n_past = 0;
 
     const bool add_bos = llama_vocab_type(ctx) == LLAMA_VOCAB_TYPE_SPM;
@@ -68,7 +68,7 @@ int get_embeddings(void* params_ptr, void* state_pr, float * res_embeddings) {
     for (int i = 0; i < n_embd; i++) {
         res_embeddings[i]=embeddings[i];
     }
-        
+
     return 0;
 }
 
@@ -78,7 +78,7 @@ int get_token_embeddings(void* params_ptr, void* state_pr,  int *tokens, int tok
     llama_binding_state* state = (llama_binding_state*) state_pr;
     llama_context* ctx = state->ctx;
     gpt_params params = *params_p;
- 
+
     for (int i = 0; i < tokenSize; i++) {
         auto token_str = llama_token_to_piece(ctx, tokens[i]);
         std::vector<std::string> my_vector;
@@ -149,7 +149,7 @@ int llama_predict(void* params_ptr, void* state_pr, char* result, bool debug) {
     }
     llama_context * ctx_guidance = NULL;
     g_ctx = &ctx;
-    
+
     if (params.cfg_scale > 1.f) {
         struct llama_context_params lparams = llama_context_params_from_gpt_params(params);
         ctx_guidance = llama_new_context_with_model(state->model, lparams);
@@ -317,7 +317,7 @@ int llama_predict(void* params_ptr, void* state_pr, char* result, bool debug) {
         llama_eval(ctx, tmp.data(), tmp.size(), 0, params.n_threads);
         llama_reset_timings(ctx);
     }
-    
+
     // set the seed before actually predicting
     llama_set_rng_seed(ctx, params.seed);
 
@@ -524,7 +524,7 @@ int llama_predict(void* params_ptr, void* state_pr, char* result, bool debug) {
         if (is_antiprompt) {
             break;
         }
-      
+
         // end of text token
         if (!embd.empty() && embd.back() == llama_token_eos(ctx)) {
                 break;
@@ -553,7 +553,7 @@ end:
 
     llama_backend_free();
 
-    strcpy(result, res.c_str()); 
+    strcpy(result, res.c_str());
     return 0;
 }
 
@@ -586,7 +586,7 @@ int speculative_sampling(void* params_ptr, void* target_model, void* draft_model
         fprintf(stderr, "%s: error: prompt too long (%d tokens, max %d)\n", __func__, (int) inp.size(), max_tokens_list_size);
         return 1;
     }
-  
+
     const int n_input = inp.size();
 
     const auto t_enc_start = ggml_time_us();
@@ -665,9 +665,9 @@ int speculative_sampling(void* params_ptr, void* target_model, void* draft_model
             const std::string token_str = llama_token_to_piece(ctx_tgt, id);
             if (!tokenCallback(draft_model, (char*)token_str.c_str())) {
                 break;
-            }       
+            }
             res += token_str.c_str();
-        
+
             if (id == llama_token_eos(ctx_tgt)) {
                 has_eos = true;
             }
@@ -767,7 +767,7 @@ int speculative_sampling(void* params_ptr, void* target_model, void* draft_model
         // evaluate the target model on the drafted tokens
         llama_eval(ctx_tgt, drafted.data(), drafted.size(), n_past_tgt, params.n_threads);
         ++n_past_tgt;
-        
+
         // the first token is always proposed by the traget model before the speculation loop
         drafted.erase(drafted.begin());
     }
@@ -799,7 +799,7 @@ int speculative_sampling(void* params_ptr, void* target_model, void* draft_model
         llama_grammar_free(grammar_dft);
         llama_grammar_free(grammar_tgt);
     }
-    strcpy(result, res.c_str()); 
+    strcpy(result, res.c_str());
     return 0;
 }
 
@@ -904,11 +904,11 @@ void* llama_allocate_params(const char *prompt, int seed, int threads, int token
     params->cfg_scale = negative_prompt_scale;
     params->cfg_negative_prompt = std::string(negative_prompt);
     params->n_draft = n_draft;
-    if (maingpu[0] != '\0') { 
+    if (maingpu[0] != '\0') {
         params->main_gpu = std::stoi(maingpu);
     }
 
-    if (tensorsplit[0] != '\0') { 
+    if (tensorsplit[0] != '\0') {
         std::string arg_next = tensorsplit;
             // split string by , and /
             const std::regex regex{R"([,/]+)"};
@@ -922,7 +922,7 @@ void* llama_allocate_params(const char *prompt, int seed, int threads, int token
                 } else {
                     params->tensor_split[i] = 0.0f;
                 }
-            }  
+            }
     }
 
     params->prompt_cache_all = prompt_cache_all;
@@ -947,10 +947,10 @@ void* llama_allocate_params(const char *prompt, int seed, int threads, int token
     std::string value_str;
     if (ss >> key && ss >> sign && std::getline(ss, value_str) && (sign == '+' || sign == '-')) {
         params->logit_bias[key] = std::stof(value_str) * ((sign == '-') ? -1.0f : 1.0f);
-    } 
+    }
     params->frequency_penalty = frequency_penalty;
     params->prompt = prompt;
-    
+
     return params;
 }
 
@@ -960,7 +960,7 @@ void* load_model(const char *fname, int n_ctx, int n_seed, bool memory_f16, bool
 
 /*
 
-Currently we hard patch the following functions to common.cpp and common.h into the llama library due to a bug into the nvcc/gcc compiler. 
+Currently we hard patch the following functions to common.cpp and common.h into the llama library due to a bug into the nvcc/gcc compiler.
 It seems that copying by value lead to a misalignment of structure and copy - resulting in a mixed up values that we pass by.
 
 See also: https://github.com/ggerganov/llama.cpp/pull/1902
@@ -1045,11 +1045,11 @@ void* load_binding_model(const char *fname, int n_ctx, int n_seed, bool memory_f
     }
 
     lparams->model = fname;
-    if (maingpu[0] != '\0') { 
+    if (maingpu[0] != '\0') {
         lparams->main_gpu = std::stoi(maingpu);
     }
 
-    if (tensorsplit[0] != '\0') { 
+    if (tensorsplit[0] != '\0') {
         std::string arg_next = tensorsplit;
             // split string by , and /
             const std::regex regex{R"([,/]+)"};
@@ -1063,7 +1063,7 @@ void* load_binding_model(const char *fname, int n_ctx, int n_seed, bool memory_f
                 } else {
                     lparams->tensor_split[i] = 0.0f;
                 }
-            }  
+            }
     }
 
     lparams->n_batch      = n_batch;
@@ -1092,7 +1092,7 @@ llama_token llama_sample_token_binding(
          std::vector<llama_token_data> & candidates,
                                    int   idx) {
 
-   
+
     struct gpt_params params = *g_params;  // NOTE: this is our patch
     const int n_ctx   = llama_n_ctx(ctx);
     const int n_vocab = llama_n_vocab(ctx);
