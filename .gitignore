@@ -2,8 +2,13 @@
 /binding.o
 /build
 /ggml-metal.metal
-/libbinding.a
 prepare
+
+# static libraries
+libbinding*.a
+
+# build output directories
+/build-output
 
 # just in case
 .DS_Store
@@ -14,3 +19,4 @@ CLAUDE.md
 
 # local testing files
 ggllm-test-model.bin
+*.gguf

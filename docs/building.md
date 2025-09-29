@@ -1,0 +1,259 @@
+# Building guide
+
+This guide covers all build options for go-llama.cpp, from basic CPU-only builds to
+hardware-accelerated configurations for maximum performance.
+
+## Build requirements
+
+The library requires:
+
+- C++ compiler (GCC/Clang)
+- CMake (required for llama.cpp b6603+)
+- Git with submodule support
+
+For containerised builds (recommended), you only need Docker.
+
+## Build methods
+
+### Recommended: Using project build containers
+
+We recommend using the project's build containers which include:
+
+- Complete C/C++ build toolchain
+- CMake (required for modern llama.cpp)
+- CUDA development tools
+- All required dependencies
+
+The build container includes CUDA support: `git.tomfos.tr/tom/go-llama.cpp:build-cuda`
+
+```bash
+# Standard build (includes CUDA support)
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+
+# CUDA-accelerated build
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+```
+
+### Alternative: Generic Ubuntu containers
+
+If you prefer not to use the project containers:
+
+```bash
+docker run --rm -v $(pwd):/workspace -w /workspace ubuntu:24.04 \
+  bash -c "apt-get update && apt-get install -y build-essential cmake && \
+           LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+```
+
+### Local builds
+
+For local builds, ensure you have CMake installed:
+
+```bash
+# Install dependencies (Ubuntu/Debian)
+sudo apt-get install build-essential cmake
+
+# Build the library
+make libbinding.a
+```
+
+## Build output
+
+The build process creates several files:
+
+### Static libraries
+
+- `libbinding.a` - Main static library for Go linking (contains wrapper.o)
+- `libcommon.a` - Common utilities (static library)
+
+### Shared libraries
+
+- `libllama.so` - LLaMA model operations
+- `libggml.so` - GGML tensor operations
+- `libggml-base.so` - Base GGML functionality
+- `libggml-cpu.so` - CPU-specific operations
+
+**Important**: The `.so` files are runtime dependencies and must be accessible via `LD_LIBRARY_PATH`.
+
+## Distributing your application
+
+When you build a Go application using go-llama.cpp, here's what you need to ship:
+
+**Your application binary** - The compiled Go executable with embedded static libraries
+(`libbinding.a` and `libcommon.a` are linked in at build time)
+
+**Shared libraries** - The `.so` files listed above must be distributed alongside your binary
+
+**Model files** - GGUF model files your application loads
+
+### Runtime setup
+
+Users running your application need the `.so` files in their library path:
+
+```bash
+# Option 1: Set LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+./your-app
+
+# Option 2: Install to system library directory
+sudo cp *.so /usr/local/lib/
+sudo ldconfig
+./your-app
+```
+
+### Docker deployment
+
+For containerised deployments, copy the `.so` files into your runtime image:
+
+```dockerfile
+FROM golang:1.25 as builder
+WORKDIR /build
+# ... build your application ...
+
+FROM debian:stable-slim
+COPY --from=builder /build/your-app /app/
+COPY --from=builder /build/*.so /usr/local/lib/
+RUN ldconfig
+CMD ["/app/your-app"]
+```
+
+## Hardware acceleration
+
+Different backends provide hardware-accelerated inference. Build with the appropriate `BUILD_TYPE`
+and link with the required libraries:
+
+| Backend | Build command | CGO flags | Notes |
+|---------|---------------|-----------|-------|
+| OpenBLAS | `BUILD_TYPE=openblas make libbinding.a` | `-lopenblas` | CPU acceleration |
+| CUDA | `BUILD_TYPE=cublas make libbinding.a` | `-lcublas -lcudart -L/usr/local/cuda/lib64/` | NVIDIA GPUs |
+| ROCm | `BUILD_TYPE=hipblas make libbinding.a` | `-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas` | AMD GPUs, requires ROCm compilers |
+| Metal | `BUILD_TYPE=metal make libbinding.a` | `-framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders` | Apple Silicon |
+| OpenCL | `BUILD_TYPE=clblas make libbinding.a` | `-lOpenCL -lclblast -L/usr/local/lib64/` | Cross-platform GPU |
+
+### CUDA acceleration example
+
+Build with CUDA support:
+
+```bash
+docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+```
+
+Run with CUDA libraries:
+
+```bash
+docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
+           go run ./examples -m /path/to/model.gguf -p 'Hello world' -n 50"
+```
+
+### OpenBLAS acceleration example
+
+For CPU acceleration without GPU hardware:
+
+```bash
+# Build with OpenBLAS
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "BUILD_TYPE=openblas LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+
+# Run with OpenBLAS
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  bash -c "CGO_LDFLAGS='-lopenblas' \
+           LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
+           go run ./examples -m /path/to/model.gguf -p 'Hello world' -n 50"
+```
+
+### Metal acceleration (Apple Silicon)
+
+For Apple Silicon Macs:
+
+```bash
+BUILD_TYPE=metal make libbinding.a
+
+# Copy the Metal shader (required)
+cp build/bin/ggml-metal.metal .
+
+# Run with Metal frameworks
+CGO_LDFLAGS="-framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders" \
+  LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD LD_LIBRARY_PATH=$PWD \
+  go run ./examples -m /path/to/model.gguf -p "Hello world" -n 50
+```
+
+## Multi-architecture builds
+
+For release builds targeting multiple architectures:
+
+```bash
+# Build for linux/amd64
+docker buildx build --platform linux/amd64 -f Dockerfile.build -o type=local,dest=. .
+
+# Build for linux/arm64
+docker buildx build --platform linux/arm64 -f Dockerfile.build -o type=local,dest=. .
+```
+
+This creates architecture-specific static libraries:
+
+- `libbinding_linux_amd64.a` - For x86_64 systems
+- `libbinding_linux_arm64.a` - For ARM64 systems
+
+Note: ARM64 builds take significantly longer due to emulation (5-15 minutes vs 1-2 minutes for
+amd64).
+
+## Environment variables
+
+```bash
+export LIBRARY_PATH=$PWD        # Build-time: linking static libraries
+export C_INCLUDE_PATH=$PWD      # Build-time: locating header files
+export LD_LIBRARY_PATH=$PWD     # Runtime: loading shared libraries
+```
+
+## Build troubleshooting
+
+### CMake not found
+
+- Use the project build containers which include CMake
+- Or install CMake: `apt-get install cmake` (Ubuntu/Debian)
+
+### Submodule not initialised
+
+```bash
+git submodule update --init --recursive
+```
+
+### Build fails with "undefined reference"
+
+- Ensure you're using a complete build environment (act-runner recommended)
+- Check that all required development packages are installed
+
+### Shared libraries not created
+
+- Verify the build completed successfully without errors
+- Check that CMake found all required dependencies
+
+### Cross-compilation issues
+
+- Use the provided Dockerfile.build for reliable multi-architecture builds
+- Ensure you have buildx enabled: `docker buildx create --use`
+
+## Performance considerations
+
+Choose your build type based on your hardware:
+
+- **CPU only**: Use OpenBLAS for better performance than plain CPU
+- **NVIDIA GPU**: CUDA provides the best performance for supported hardware
+- **AMD GPU**: ROCm/HIP support varies by GPU generation
+- **Apple Silicon**: Metal provides excellent performance on M-series Macs
+- **General GPU**: OpenCL works across platforms but with varying performance
+
+## Clean builds
+
+To ensure a fresh build:
+
+```bash
+make clean
+# Remove any cached Docker layers if needed
+docker system prune -f
+```
+
+This removes all build artifacts and forces a complete rebuild on the next `make` command.

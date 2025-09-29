@@ -1,0 +1,68 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdbool.h>
+#include <stdint.h>
+
+// Model parameters for loading
+typedef struct {
+    int n_ctx;              // Context size
+    int n_batch;            // Batch size
+    int n_gpu_layers;       // Number of GPU layers
+    int n_threads;          // Number of threads
+    bool f16_memory;        // Use F16 for memory
+    bool mlock;            // Memory lock
+    bool mmap;             // Memory mapping
+    bool embeddings;       // Enable embeddings
+    const char* main_gpu;   // Main GPU
+    const char* tensor_split; // Tensor split
+} llama_wrapper_model_params;
+
+// Generation parameters
+typedef struct {
+    const char* prompt;
+    int max_tokens;
+    float temperature;
+    float top_p;
+    int top_k;
+    int seed;
+    const char** stop_words;
+    int stop_words_count;
+    int n_draft;           // For speculative sampling
+    bool debug;
+    uintptr_t callback_handle; // Handle to Go callback
+} llama_wrapper_generate_params;
+
+// Callback for streaming tokens
+typedef bool (*llama_wrapper_token_callback)(const char* token);
+
+// Model management
+void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_params params);
+void llama_wrapper_model_free(void* model);
+
+// Context management (kept for API compatibility)
+void* llama_wrapper_context_create(void* model, llama_wrapper_model_params params);
+void llama_wrapper_context_free(void* ctx);
+
+// Text generation
+char* llama_wrapper_generate(void* ctx, llama_wrapper_generate_params params);
+
+// Speculative generation with draft model
+char* llama_wrapper_generate_draft(void* ctx_target, void* ctx_draft, llama_wrapper_generate_params params);
+
+// Tokenization
+int llama_wrapper_tokenize(void* ctx, const char* text, int* tokens, int max_tokens);
+
+// Embeddings
+int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int max_embeddings);
+
+// Utility functions
+void llama_wrapper_free_result(char* result);
+const char* llama_wrapper_last_error();
+
+#ifdef __cplusplus
+}
+#endif

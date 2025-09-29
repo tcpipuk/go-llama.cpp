@@ -1,4 +1,4 @@
-# Pre-commit configuration for Neuromancer project
+# Pre-commit configuration for go-llama.cpp
 # Runs quality checks before commits
 
 default_install_hook_types:
@@ -13,7 +13,6 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-added-large-files
       - id: check-case-conflict
       - id: check-json
       - id: check-merge-conflict
@@ -25,10 +24,6 @@ repos:
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: trailing-whitespace
-      # Python-specific from this repo
-      - id: check-ast
-      - id: check-docstring-first
-      - id: debug-statements
 
   # Markdown linting
   - repo: https://github.com/DavidAnson/markdownlint-cli2
@@ -70,7 +65,7 @@ repos:
 
       - id: go-test
         name: go test
-        entry: sh -c 'docker run --rm -v $(pwd):/workspace -w /workspace golang:1.25.1-trixie bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace go run github.com/onsi/ginkgo/v2/ginkgo --label-filter=\"!gpu\" -v ./..."'
+        entry: sh -c 'docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace go run github.com/onsi/ginkgo/v2/ginkgo --label-filter=\"!gpu\" -v ./..."'
         language: system
         types: [go]
         pass_filenames: false

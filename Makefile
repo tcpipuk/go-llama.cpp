@@ -36,9 +36,9 @@ endif
 #
 
 BUILD_TYPE?=
-# keep standard at C11 and C++11
+# keep standard at C11 and C++17
 CFLAGS   = -I./llama.cpp -I. -O3 -DNDEBUG -std=c11 -fPIC
-CXXFLAGS = -I./llama.cpp -I. -I./llama.cpp/common -I./common -O3 -DNDEBUG -std=c++11 -fPIC
+CXXFLAGS = -I./llama.cpp -I. -I./llama.cpp/common -I./common -I./llama.cpp/ggml/include -I./llama.cpp/include -O3 -DNDEBUG -std=c++17 -fPIC
 LDFLAGS  =
 
 # warnings
@@ -73,7 +73,7 @@ ifeq ($(UNAME_S),Haiku)
 endif
 
 # GPGPU specific
-GGML_CUDA_OBJ_PATH=CMakeFiles/ggml.dir/ggml-cuda.cu.o
+GGML_CUDA_OBJ_PATH=ggml/src/ggml-cuda/CMakeFiles/ggml-cuda.dir/ggml-cuda.cu.o
 
 
 # Architecture specific
@@ -129,17 +129,20 @@ endif
 
 ifeq ($(BUILD_TYPE),openblas)
 	EXTRA_LIBS=
-	CMAKE_ARGS+=-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas
+	CMAKE_ARGS+=-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas
 endif
 
 ifeq ($(BUILD_TYPE),blis)
 	EXTRA_LIBS=
-	CMAKE_ARGS+=-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=FLAME
+	CMAKE_ARGS+=-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=FLAME
 endif
 
 ifeq ($(BUILD_TYPE),cublas)
 	EXTRA_LIBS=
-	CMAKE_ARGS+=-DLLAMA_CUBLAS=ON
+	CMAKE_ARGS+=-DGGML_CUDA=ON
+	ifdef CUDA_ARCHITECTURES
+		CMAKE_ARGS+=-DCMAKE_CUDA_ARCHITECTURES="$(CUDA_ARCHITECTURES)"
+	endif
 	EXTRA_TARGETS+=llama.cpp/ggml-cuda.o
 endif
 
@@ -150,21 +153,21 @@ ifeq ($(BUILD_TYPE),hipblas)
 	EXTRA_LIBS=
 	GPU_TARGETS ?= gfx900,gfx90a,gfx1030,gfx1031,gfx1100
 	AMDGPU_TARGETS ?= "$(GPU_TARGETS)"
-	CMAKE_ARGS+=-DLLAMA_HIPBLAS=ON -DAMDGPU_TARGETS="$(AMDGPU_TARGETS)" -DGPU_TARGETS="$(GPU_TARGETS)"
+	CMAKE_ARGS+=-DGGML_HIP=ON -DAMDGPU_TARGETS="$(AMDGPU_TARGETS)" -DGPU_TARGETS="$(GPU_TARGETS)"
 	EXTRA_TARGETS+=llama.cpp/ggml-cuda.o
-	GGML_CUDA_OBJ_PATH=CMakeFiles/ggml-rocm.dir/ggml-cuda.cu.o
+	GGML_CUDA_OBJ_PATH=ggml/src/ggml-hip/CMakeFiles/ggml-hip.dir/ggml-cuda.cu.o
 endif
 
 ifeq ($(BUILD_TYPE),clblas)
 	EXTRA_LIBS=
-	CMAKE_ARGS+=-DLLAMA_CLBLAST=ON
+	CMAKE_ARGS+=-DGGML_OPENCL=ON
 	EXTRA_TARGETS+=llama.cpp/ggml-opencl.o
 endif
 
 ifeq ($(BUILD_TYPE),metal)
 	EXTRA_LIBS=
 	CGO_LDFLAGS+="-framework Accelerate -framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders"
-	CMAKE_ARGS+=-DLLAMA_METAL=ON
+	CMAKE_ARGS+=-DGGML_METAL=ON
 	EXTRA_TARGETS+=llama.cpp/ggml-metal.o
 endif
 
@@ -201,15 +204,13 @@ $(info )
 
 # Use this if you want to set the default behavior
 
-llama.cpp/grammar-parser.o: llama.cpp/ggml.o
-	cd build && cp -rf common/CMakeFiles/common.dir/grammar-parser.cpp.o ../llama.cpp/grammar-parser.o
 
 llama.cpp/ggml-alloc.o: llama.cpp/ggml.o
-	cd build && cp -rf CMakeFiles/ggml.dir/ggml-alloc.c.o ../llama.cpp/ggml-alloc.o
+	cd build && cp -rf ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o ../llama.cpp/ggml-alloc.o
 
-llama.cpp/ggml.o: prepare
+llama.cpp/ggml.o:
 	mkdir -p build
-	cd build && CC="$(CC)" CXX="$(CXX)" cmake ../llama.cpp $(CMAKE_ARGS) && VERBOSE=1 cmake --build . --config Release && cp -rf CMakeFiles/ggml.dir/ggml.c.o ../llama.cpp/ggml.o
+	cd build && CC="$(CC)" CXX="$(CXX)" cmake ../llama.cpp $(CMAKE_ARGS) -DLLAMA_CURL=OFF && VERBOSE=1 cmake --build . --config Release --target ggml llama && cp -rf ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o ../llama.cpp/ggml.o
 
 llama.cpp/ggml-cuda.o: llama.cpp/ggml.o
 	cd build && cp -rf "$(GGML_CUDA_OBJ_PATH)" ../llama.cpp/ggml-cuda.o
@@ -221,29 +222,40 @@ llama.cpp/ggml-metal.o: llama.cpp/ggml.o
 	cd build && cp -rf CMakeFiles/ggml.dir/ggml-metal.m.o ../llama.cpp/ggml-metal.o
 
 llama.cpp/k_quants.o: llama.cpp/ggml.o
-	cd build && cp -rf CMakeFiles/ggml.dir/k_quants.c.o ../llama.cpp/k_quants.o
+	cd build && cp -rf ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o ../llama.cpp/k_quants.o
 
 llama.cpp/llama.o: llama.cpp/ggml.o
-	cd build && cp -rf CMakeFiles/llama.dir/llama.cpp.o ../llama.cpp/llama.o
+	cd build && cp -rf src/CMakeFiles/llama.dir/llama.cpp.o ../llama.cpp/llama.o
 
 llama.cpp/common.o: llama.cpp/ggml.o
-	cd build && cp -rf common/CMakeFiles/common.dir/common.cpp.o ../llama.cpp/common.o
+	$(CXX) $(CXXFLAGS) -I./llama.cpp -I./llama.cpp/common -I./llama.cpp/ggml/include -I./llama.cpp/include llama.cpp/common/common.cpp -o llama.cpp/common.o -c $(LDFLAGS)
 
-binding.o: prepare
-	$(CXX) $(CXXFLAGS) -I./llama.cpp -I./llama.cpp/common binding.cpp -o binding.o -c $(LDFLAGS)
+llama.cpp/sampling.o: llama.cpp/ggml.o
+	$(CXX) $(CXXFLAGS) -I./llama.cpp -I./llama.cpp/common -I./llama.cpp/ggml/include -I./llama.cpp/include llama.cpp/common/sampling.cpp -o llama.cpp/sampling.o -c $(LDFLAGS)
 
-## https://github.com/ggerganov/llama.cpp/pull/1902
-prepare:
-	cd llama.cpp && patch -p1 < ../patches/1902-cuda.patch
-	touch $@
+llama.cpp/log.o: llama.cpp/ggml.o
+	$(CXX) $(CXXFLAGS) -I./llama.cpp -I./llama.cpp/common -I./llama.cpp/ggml/include -I./llama.cpp/include llama.cpp/common/log.cpp -o llama.cpp/log.o -c $(LDFLAGS)
 
-libbinding.a: llama.cpp/ggml.o llama.cpp/k_quants.o llama.cpp/ggml-alloc.o llama.cpp/common.o llama.cpp/grammar-parser.o llama.cpp/llama.o binding.o $(EXTRA_TARGETS)
-	ar src libbinding.a llama.cpp/ggml.o llama.cpp/k_quants.o llama.cpp/ggml-alloc.o llama.cpp/common.o llama.cpp/grammar-parser.o llama.cpp/llama.o binding.o $(EXTRA_TARGETS)
+wrapper.o:
+	$(CXX) $(CXXFLAGS) -I./llama.cpp -I./llama.cpp/common -I./llama.cpp/ggml/include -I./llama.cpp/include wrapper.cpp -o wrapper.o -c $(LDFLAGS)
+
+# All Go bindings are now handled through wrapper.cpp
+
+libbinding.a: llama.cpp/ggml.o wrapper.o $(EXTRA_TARGETS)
+	cd build && cmake --build . --target common
+	ar crs libbinding.a wrapper.o $(EXTRA_TARGETS)
+	cp build/bin/libllama.so .
+	cp build/bin/libggml.so .
+	cp build/bin/libggml-base.so .
+	cp build/bin/libggml-cpu.so .
+	cp build/common/libcommon.a .
 
 clean:
 	rm -rf *.o
 	rm -rf *.a
-	$(MAKE) -C llama.cpp clean
+	rm -rf *.so
+	rm -rf llama.cpp/*.o
+	cd llama.cpp && git checkout -- . && git clean -fd
 	rm -rf build
 
 ggllm-test-model.bin:
