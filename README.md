@@ -1,6 +1,6 @@
-# go-llama.cpp
+# llama-go: Run LLMs locally with Go
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/tcpipuk/go-llama.cpp.svg)](https://pkg.go.dev/github.com/tcpipuk/go-llama.cpp)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tcpipuk/llama-go.svg)](https://pkg.go.dev/github.com/tcpipuk/llama-go)
 
 Go bindings for [llama.cpp](https://github.com/ggml-org/llama.cpp), enabling you to run large
 language models locally with hardware acceleration support. Integrate LLM inference directly into Go
@@ -12,7 +12,7 @@ llama.cpp whilst offering a lighter, more performant alternative to Python-based
 PyTorch and/or vLLM.
 
 **Note**: Historical tags use the original module path `github.com/go-skynet/go-llama.cpp`. For
-new development, use `github.com/tcpipuk/go-llama.cpp`.
+new development, use `github.com/tcpipuk/llama-go`.
 
 **Releases**: This fork's tags follow llama.cpp releases using the format `llama.cpp-{tag}` (e.g.
 `llama.cpp-b6603`). This ensures compatibility tracking with the underlying C++ library.
@@ -21,8 +21,8 @@ new development, use `github.com/tcpipuk/go-llama.cpp`.
 
 ```bash
 # Clone with submodules
-git clone --recurse-submodules https://github.com/tcpipuk/go-llama.cpp
-cd go-llama.cpp
+git clone --recurse-submodules https://github.com/tcpipuk/llama-go
+cd llama-go
 
 # Build the library
 make libbinding.a
@@ -45,7 +45,7 @@ package main
 
 import (
     "fmt"
-    llama "github.com/tcpipuk/go-llama.cpp"
+    llama "github.com/tcpipuk/llama-go"
 )
 
 func main() {
@@ -89,7 +89,7 @@ The library is not thread-safe. For concurrent usage, implement a pool pattern a
 ### Quick references
 
 - **[Examples](examples/README.md)** - CLI example with build instructions and usage options
-- [Go package documentation](https://pkg.go.dev/github.com/tcpipuk/go-llama.cpp) - Full API reference
+- [Go package documentation](https://pkg.go.dev/github.com/tcpipuk/llama-go) - Full API reference
 - [RELEASE.md](RELEASE.md) - Release process and compatibility tracking
 
 ## Requirements
@@ -100,7 +100,7 @@ The library is not thread-safe. For concurrent usage, implement a pool pattern a
 
 The library uses the GGUF model format, which is the current standard for llama.cpp. For legacy
 GGML format support, use the
-[pre-gguf tag](https://github.com/tcpipuk/go-llama.cpp/releases/tag/pre-gguf).
+[pre-gguf tag](https://github.com/tcpipuk/llama-go/releases/tag/pre-gguf).
 
 ## Architecture
 

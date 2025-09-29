@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains multiple examples demonstrating different go-llama.cpp features:
+This directory contains multiple examples demonstrating different llama-go features:
 
 - **`simple/`** - Basic text generation with command-line interface
 - **`streaming/`** - Real-time token streaming during generation
@@ -16,7 +16,7 @@ Start by building the library from the project root:
 ```bash
 # Build using project containers (includes cmake and build tools)
 docker run --rm -v $(pwd):/workspace -w /workspace \
-  git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 ```
 
@@ -128,12 +128,12 @@ To enable GPU acceleration, use the CUDA build container:
 ```bash
 # CUDA build
 docker run --rm --gpus all -v $(pwd):/workspace -w /workspace \
-  git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 
 # CUDA inference with GPU layers
 docker run --rm --gpus all -v $(pwd):/workspace -w /workspace \
-  git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+  git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
            go run ./examples/simple -m model.gguf -ngl 32 -p 'Hello world' -n 50"
 ```

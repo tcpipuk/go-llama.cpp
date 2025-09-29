@@ -1,4 +1,4 @@
-# Dockerfile.cuda - CUDA build environment for go-llama.cpp
+# Dockerfile.cuda - CUDA build environment for llama-go
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 # Install build essentials and cmake

@@ -1,6 +1,6 @@
 # Release process
 
-This document outlines how to create new releases of go-llama.cpp that maintain
+This document outlines how to create new releases of llama-go that maintain
 compatibility with upstream llama.cpp development.
 
 ## Overview

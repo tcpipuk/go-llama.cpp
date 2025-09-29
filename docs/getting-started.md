@@ -1,6 +1,6 @@
 # Getting started guide
 
-This guide walks you through setting up go-llama.cpp from scratch to running your first inference
+This guide walks you through setting up llama-go from scratch to running your first inference
 example. By the end, you'll have a working installation and understand the basic workflow.
 
 ## Prerequisites
@@ -18,8 +18,8 @@ That's it - we'll handle everything else through containers to avoid dependency 
 Clone the repository with its llama.cpp submodule:
 
 ```bash
-git clone --recurse-submodules https://github.com/tcpipuk/go-llama.cpp
-cd go-llama.cpp
+git clone --recurse-submodules https://github.com/tcpipuk/llama-go
+cd llama-go
 ```
 
 If you've already cloned without submodules, initialise them:
@@ -33,7 +33,7 @@ git submodule update --init --recursive
 We'll use the project's build containers which include all necessary build tools, including CMake:
 
 ```bash
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 ```
 
@@ -153,7 +153,7 @@ Now that you have a working installation:
 
 You've successfully:
 
-- Built the go-llama.cpp library with all dependencies
+- Built the llama-go library with all dependencies
 - Downloaded and tested with a working language model
 - Verified the complete inference pipeline works
 - Understood the basic environment setup
@@ -165,7 +165,7 @@ Now that the library works, here's how to integrate it into your Go application:
 1. **Import the package** in your Go code:
 
    ```go
-   import llama "github.com/tcpipuk/go-llama.cpp"
+   import llama "github.com/tcpipuk/llama-go"
    ```
 
 2. **Build your application** with the same environment variables:

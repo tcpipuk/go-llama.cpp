@@ -16,7 +16,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: git.tomfos.tr/tom/go-llama.cpp:build-cuda
+      image: git.tomfos.tr/tom/llama-go:build-cuda
     env:
       LIBRARY_PATH: ${{ github.workspace }}
       C_INCLUDE_PATH: ${{ github.workspace }}

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	llama "github.com/tcpipuk/go-llama.cpp"
+	llama "github.com/tcpipuk/llama-go"
 )
 
 func main() {

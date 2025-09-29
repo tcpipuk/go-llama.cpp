@@ -25,7 +25,6 @@ on:
 
 env:
   REGISTRY: git.tomfos.tr
-  IMAGE_NAME: go-llama.cpp
   IMAGE_TAG: build-cuda
 
 jobs:
@@ -54,7 +53,7 @@ jobs:
           context: .
           file: Dockerfile.cuda
           push: true
-          tags: ${{ env.REGISTRY }}/tom/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ env.IMAGE_TAG }}
           build-args: |
             CUDA_ARCHITECTURES=${{ github.event.inputs.cuda_architectures || '86' }}
             GO_VERSION=${{ github.event.inputs.go_version || '1.25.1' }}

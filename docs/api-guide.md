@@ -1,6 +1,6 @@
 # API usage guide
 
-This guide covers the go-llama.cpp API in detail, showing how to integrate LLM inference into Go
+This guide covers the llama-go API in detail, showing how to integrate LLM inference into Go
 applications.
 
 ## Basic usage
@@ -12,7 +12,7 @@ package main
 
 import (
     "fmt"
-    llama "github.com/tcpipuk/go-llama.cpp"
+    llama "github.com/tcpipuk/llama-go"
 )
 
 func main() {

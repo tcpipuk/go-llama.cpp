@@ -9,5 +9,5 @@ import (
 
 func TestLLaMa(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "go-llama.cpp test suite")
+	RunSpecs(t, "llama-go test suite")
 }

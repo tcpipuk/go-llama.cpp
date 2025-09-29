@@ -1,6 +1,6 @@
 # Building guide
 
-This guide covers all build options for go-llama.cpp, from basic CPU-only builds to
+This guide covers all build options for llama-go, from basic CPU-only builds to
 hardware-accelerated configurations for maximum performance.
 
 ## Build requirements
@@ -24,15 +24,15 @@ We recommend using the project's build containers which include:
 - CUDA development tools
 - All required dependencies
 
-The build container includes CUDA support: `git.tomfos.tr/tom/go-llama.cpp:build-cuda`
+The build container includes CUDA support: `git.tomfos.tr/tom/llama-go:build-cuda`
 
 ```bash
 # Standard build (includes CUDA support)
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 
 # CUDA-accelerated build
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 ```
 
@@ -62,34 +62,66 @@ make libbinding.a
 
 The build process creates several files:
 
-### Static libraries
+**Static libraries:**
 
 - `libbinding.a` - Main static library for Go linking (contains wrapper.o)
-- `libcommon.a` - Common utilities (static library)
+- `libcommon.a` - Common utilities
 
-### Shared libraries
+**Shared libraries:**
 
 - `libllama.so` - LLaMA model operations
 - `libggml.so` - GGML tensor operations
 - `libggml-base.so` - Base GGML functionality
 - `libggml-cpu.so` - CPU-specific operations
 
-**Important**: The `.so` files are runtime dependencies and must be accessible via `LD_LIBRARY_PATH`.
+## Linking options
+
+You need to decide how to link the llama.cpp libraries into your application. Both approaches are
+equally valid - choose based on your deployment needs.
+
+### Dynamic linking (default)
+
+The default build creates shared libraries that load at runtime. Your Go binary includes the
+static wrapper libraries (`libbinding.a`, `libcommon.a`) whilst the llama.cpp components remain
+as separate `.so` files.
+
+**When to use:**
+
+- You want smaller binaries
+- You're comfortable managing library paths
+- You might update llama.cpp independently
+
+**Building:** Use the standard build commands shown above.
+
+**What you ship:**
+
+- Your application binary (~10-20MB)
+- The `.so` files listed above
+- Model files
+
+### Static linking
+
+Build llama.cpp as static libraries to create a single self-contained binary. Modify the CMake
+build to pass `-DBUILD_SHARED_LIBS=OFF` in the Makefile.
+
+**When to use:**
+
+- You want single-binary deployment
+- You're deploying to containers
+- You want to avoid library path configuration
+
+**Building:** Modify the Makefile's CMake configuration to include `-DBUILD_SHARED_LIBS=OFF`.
+
+**What you ship:**
+
+- Your application binary (30-100MB depending on acceleration)
+- Model files
 
 ## Distributing your application
 
-When you build a Go application using go-llama.cpp, here's what you need to ship:
+### With dynamic linking
 
-**Your application binary** - The compiled Go executable with embedded static libraries
-(`libbinding.a` and `libcommon.a` are linked in at build time)
-
-**Shared libraries** - The `.so` files listed above must be distributed alongside your binary
-
-**Model files** - GGUF model files your application loads
-
-### Runtime setup
-
-Users running your application need the `.so` files in their library path:
+Users need the `.so` files accessible at runtime:
 
 ```bash
 # Option 1: Set LD_LIBRARY_PATH
@@ -102,9 +134,7 @@ sudo ldconfig
 ./your-app
 ```
 
-### Docker deployment
-
-For containerised deployments, copy the `.so` files into your runtime image:
+**Docker deployment:**
 
 ```dockerfile
 FROM golang:1.25 as builder
@@ -116,6 +146,14 @@ COPY --from=builder /build/your-app /app/
 COPY --from=builder /build/*.so /usr/local/lib/
 RUN ldconfig
 CMD ["/app/your-app"]
+```
+
+### With static linking
+
+No runtime configuration needed - just run your binary:
+
+```bash
+./your-app
 ```
 
 ## Hardware acceleration
@@ -136,14 +174,14 @@ and link with the required libraries:
 Build with CUDA support:
 
 ```bash
-docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 ```
 
 Run with CUDA libraries:
 
 ```bash
-docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
            go run ./examples -m /path/to/model.gguf -p 'Hello world' -n 50"
 ```
@@ -154,11 +192,11 @@ For CPU acceleration without GPU hardware:
 
 ```bash
 # Build with OpenBLAS
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "BUILD_TYPE=openblas LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 
 # Run with OpenBLAS
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda \
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "CGO_LDFLAGS='-lopenblas' \
            LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
            go run ./examples -m /path/to/model.gguf -p 'Hello world' -n 50"

@@ -1,4 +1,4 @@
-# Pre-commit configuration for go-llama.cpp
+# Pre-commit configuration for llama-go
 # Runs quality checks before commits
 
 default_install_hook_types:
@@ -65,7 +65,7 @@ repos:
 
       - id: go-test
         name: go test
-        entry: sh -c 'docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/go-llama.cpp:build-cuda bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace go run github.com/onsi/ginkgo/v2/ginkgo --label-filter=\"!gpu\" -v ./..."'
+        entry: sh -c 'docker run --rm --gpus all -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace go run github.com/onsi/ginkgo/v2/ginkgo --label-filter=\"!gpu\" -v ./..."'
         language: system
         types: [go]
         pass_filenames: false
