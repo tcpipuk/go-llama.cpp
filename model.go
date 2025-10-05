@@ -12,12 +12,15 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/cgo"
+	"sync"
 	"unsafe"
 )
 
 // Model represents a loaded LLAMA model with its context
 type Model struct {
-	ptr unsafe.Pointer
+	ptr    unsafe.Pointer
+	mu     sync.RWMutex
+	closed bool
 }
 
 // modelConfig holds configuration for model loading
@@ -193,6 +196,10 @@ func WithDebug() GenerateOption {
 
 // LoadModel loads a GGUF model from the specified path
 func LoadModel(path string, opts ...ModelOption) (*Model, error) {
+	if path == "" {
+		return nil, fmt.Errorf("Model path cannot be null")
+	}
+
 	config := defaultModelConfig
 	for _, opt := range opts {
 		opt(&config)
@@ -242,20 +249,27 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 
 // Close frees the model and its associated resources
 func (m *Model) Close() error {
+	m.mu.Lock()  // Write lock to block all operations
+	defer m.mu.Unlock()
+
+	if m.closed {
+		return nil
+	}
+
+	// Remove finaliser FIRST to prevent race with GC
+	runtime.SetFinalizer(m, nil)
+
 	if m.ptr != nil {
 		C.llama_wrapper_model_free(m.ptr)
 		m.ptr = nil
-		runtime.SetFinalizer(m, nil)
 	}
+
+	m.closed = true
 	return nil
 }
 
 // Generate generates text from the given prompt
 func (m *Model) Generate(prompt string, opts ...GenerateOption) (string, error) {
-	if m.ptr == nil {
-		return "", fmt.Errorf("model is closed")
-	}
-
 	config := defaultGenerateConfig
 	for _, opt := range opts {
 		opt(&config)
@@ -266,10 +280,6 @@ func (m *Model) Generate(prompt string, opts ...GenerateOption) (string, error) 
 
 // GenerateStream generates text with streaming output via callback
 func (m *Model) GenerateStream(prompt string, callback func(token string) bool, opts ...GenerateOption) error {
-	if m.ptr == nil {
-		return fmt.Errorf("model is closed")
-	}
-
 	config := defaultGenerateConfig
 	for _, opt := range opts {
 		opt(&config)
@@ -281,13 +291,6 @@ func (m *Model) GenerateStream(prompt string, callback func(token string) bool, 
 
 // GenerateWithDraft performs speculative generation using a draft model
 func (m *Model) GenerateWithDraft(prompt string, draft *Model, opts ...GenerateOption) (string, error) {
-	if m.ptr == nil {
-		return "", fmt.Errorf("model is closed")
-	}
-	if draft.ptr == nil {
-		return "", fmt.Errorf("draft model is closed")
-	}
-
 	config := defaultGenerateConfig
 	for _, opt := range opts {
 		opt(&config)
@@ -298,13 +301,6 @@ func (m *Model) GenerateWithDraft(prompt string, draft *Model, opts ...GenerateO
 
 // GenerateWithDraftStream performs speculative generation with streaming output
 func (m *Model) GenerateWithDraftStream(prompt string, draft *Model, callback func(token string) bool, opts ...GenerateOption) error {
-	if m.ptr == nil {
-		return fmt.Errorf("model is closed")
-	}
-	if draft.ptr == nil {
-		return fmt.Errorf("draft model is closed")
-	}
-
 	config := defaultGenerateConfig
 	for _, opt := range opts {
 		opt(&config)
@@ -316,7 +312,10 @@ func (m *Model) GenerateWithDraftStream(prompt string, draft *Model, callback fu
 
 // Tokenize converts text to tokens
 func (m *Model) Tokenize(text string) ([]int32, error) {
-	if m.ptr == nil {
+	m.mu.RLock()  // Read lock allows concurrent tokenize operations
+	defer m.mu.RUnlock()
+
+	if m.closed || m.ptr == nil {
 		return nil, fmt.Errorf("model is closed")
 	}
 
@@ -341,7 +340,10 @@ func (m *Model) Tokenize(text string) ([]int32, error) {
 
 // GetEmbeddings computes embeddings for the given text
 func (m *Model) GetEmbeddings(text string) ([]float32, error) {
-	if m.ptr == nil {
+	m.mu.RLock()  // Read lock allows concurrent embedding operations
+	defer m.mu.RUnlock()
+
+	if m.closed || m.ptr == nil {
 		return nil, fmt.Errorf("model is closed")
 	}
 
@@ -366,6 +368,14 @@ func (m *Model) GetEmbeddings(text string) ([]float32, error) {
 
 // Helper function for regular generation
 func (m *Model) generateWithConfig(prompt string, config generateConfig, callback func(string) bool) (string, error) {
+	// Read lock for the entire C operation to prevent Close() mid-operation
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.closed || m.ptr == nil {
+		return "", fmt.Errorf("model is closed")
+	}
+
 	cPrompt := C.CString(prompt)
 	defer C.free(unsafe.Pointer(cPrompt))
 
@@ -425,6 +435,19 @@ func (m *Model) generateWithConfig(prompt string, config generateConfig, callbac
 
 // Helper function for speculative generation
 func (m *Model) generateWithDraftAndConfig(prompt string, draft *Model, config generateConfig, callback func(string) bool) (string, error) {
+	// Read lock both models for the entire C operation
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	draft.mu.RLock()
+	defer draft.mu.RUnlock()
+
+	if m.closed || m.ptr == nil {
+		return "", fmt.Errorf("model is closed")
+	}
+	if draft.closed || draft.ptr == nil {
+		return "", fmt.Errorf("draft model is closed")
+	}
+
 	cPrompt := C.CString(prompt)
 	defer C.free(unsafe.Pointer(cPrompt))
 

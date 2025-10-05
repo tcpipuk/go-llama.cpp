@@ -77,4 +77,4 @@ jobs:
 
       - name: Run example
         run: |
-          go run ./examples -m Qwen3-0.6B-Q8_0.gguf -p 'Hello world' -n 50
+          go run ./examples/simple -m Qwen3-0.6B-Q8_0.gguf -p 'Hello world' -n 50

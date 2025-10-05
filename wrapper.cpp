@@ -99,9 +99,11 @@ void llama_wrapper_model_free(void* model) {
     auto wrapper = static_cast<llama_wrapper*>(model);
     if (wrapper->ctx) {
         llama_free(wrapper->ctx);
+        wrapper->ctx = nullptr;  // Prevent double-free
     }
     if (wrapper->model) {
         llama_model_free(wrapper->model);
+        wrapper->model = nullptr;  // Prevent double-free
     }
     delete wrapper;
 }
