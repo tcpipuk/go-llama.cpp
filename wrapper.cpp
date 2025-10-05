@@ -18,10 +18,14 @@ extern "C" {
 // Forward declaration of Go callback function
 extern bool goTokenCallback(uintptr_t handle, const char* token);
 
-// Wrapper structure to hold model and context together
-struct llama_wrapper {
+// Separate wrappers for model and context
+struct llama_wrapper_model_t {
     llama_model* model;
+};
+
+struct llama_wrapper_context_t {
     llama_context* ctx;
+    llama_model* model;  // Reference to parent model
 };
 
 const char* llama_wrapper_last_error() {
@@ -64,7 +68,7 @@ void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_param
         // Initialize llama backend
         llama_backend_init();
 
-        // Load model
+        // Load model (weights only)
         auto model_params = convert_model_params(params);
         llama_model* model = llama_model_load_from_file(model_path, model_params);
         if (!model) {
@@ -72,19 +76,9 @@ void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_param
             return nullptr;
         }
 
-        // Create context
-        auto ctx_params = convert_context_params(params);
-        llama_context* ctx = llama_init_from_model(model, ctx_params);
-        if (!ctx) {
-            g_last_error = "Failed to create context";
-            llama_model_free(model);
-            return nullptr;
-        }
-
-        // Create wrapper
-        auto wrapper = new llama_wrapper();
+        // Create wrapper (model only, no context)
+        auto wrapper = new llama_wrapper_model_t();
         wrapper->model = model;
-        wrapper->ctx = ctx;
 
         return wrapper;
     } catch (const std::exception& e) {
@@ -96,11 +90,7 @@ void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_param
 void llama_wrapper_model_free(void* model) {
     if (!model) return;
 
-    auto wrapper = static_cast<llama_wrapper*>(model);
-    if (wrapper->ctx) {
-        llama_free(wrapper->ctx);
-        wrapper->ctx = nullptr;  // Prevent double-free
-    }
+    auto wrapper = static_cast<llama_wrapper_model_t*>(model);
     if (wrapper->model) {
         llama_model_free(wrapper->model);
         wrapper->model = nullptr;  // Prevent double-free
@@ -109,14 +99,43 @@ void llama_wrapper_model_free(void* model) {
 }
 
 void* llama_wrapper_context_create(void* model, llama_wrapper_model_params params) {
-    // For this API, model loading includes context creation
-    // This function is kept for compatibility but just returns the model
-    return model;
+    if (!model) {
+        g_last_error = "Model cannot be null";
+        return nullptr;
+    }
+
+    try {
+        auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+
+        // Create context from model
+        auto ctx_params = convert_context_params(params);
+        llama_context* ctx = llama_init_from_model(model_wrapper->model, ctx_params);
+        if (!ctx) {
+            g_last_error = "Failed to create context";
+            return nullptr;
+        }
+
+        // Create context wrapper
+        auto ctx_wrapper = new llama_wrapper_context_t();
+        ctx_wrapper->ctx = ctx;
+        ctx_wrapper->model = model_wrapper->model;  // Keep reference to parent model
+
+        return ctx_wrapper;
+    } catch (const std::exception& e) {
+        g_last_error = "Exception creating context: " + std::string(e.what());
+        return nullptr;
+    }
 }
 
 void llama_wrapper_context_free(void* ctx) {
-    // Context is freed with the model
-    // This function is kept for compatibility
+    if (!ctx) return;
+
+    auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
+    if (wrapper->ctx) {
+        llama_free(wrapper->ctx);
+        wrapper->ctx = nullptr;  // Prevent double-free
+    }
+    delete wrapper;
 }
 
 char* llama_wrapper_generate(void* ctx, llama_wrapper_generate_params params) {
@@ -125,7 +144,7 @@ char* llama_wrapper_generate(void* ctx, llama_wrapper_generate_params params) {
         return nullptr;
     }
 
-    auto wrapper = static_cast<llama_wrapper*>(ctx);
+    auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
 
     try {
         // Tokenize the prompt
@@ -257,8 +276,8 @@ char* llama_wrapper_generate_draft(void* ctx_target, void* ctx_draft, llama_wrap
         return nullptr;
     }
 
-    auto wrapper_tgt = static_cast<llama_wrapper*>(ctx_target);
-    auto wrapper_dft = static_cast<llama_wrapper*>(ctx_draft);
+    auto wrapper_tgt = static_cast<llama_wrapper_context_t*>(ctx_target);
+    auto wrapper_dft = static_cast<llama_wrapper_context_t*>(ctx_draft);
 
     try {
         // Tokenize the prompt
@@ -409,7 +428,7 @@ int llama_wrapper_tokenize(void* ctx, const char* text, int* tokens, int max_tok
         return -1;
     }
 
-    auto wrapper = static_cast<llama_wrapper*>(ctx);
+    auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
 
     try {
         std::vector<llama_token> token_vec = common_tokenize(wrapper->ctx, text, true, true);
@@ -432,7 +451,7 @@ int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int
         return -1;
     }
 
-    auto wrapper = static_cast<llama_wrapper*>(ctx);
+    auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
 
     try {
         // Tokenize text

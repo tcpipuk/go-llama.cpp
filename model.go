@@ -13,14 +13,34 @@ import (
 	"runtime"
 	"runtime/cgo"
 	"sync"
+	"time"
 	"unsafe"
 )
 
-// Model represents a loaded LLAMA model with its context
+// context represents a single execution context with usage tracking
+type context struct {
+	ptr     unsafe.Pointer // llama_wrapper_context_t*
+	lastUse time.Time
+	mu      sync.Mutex
+}
+
+// contextPool manages a dynamic pool of contexts for a model
+type contextPool struct {
+	model     unsafe.Pointer // llama_wrapper_model_t* (weights only)
+	config    modelConfig
+	contexts  []*context
+	available chan *context
+	done      chan struct{}
+	mu        sync.Mutex
+	wg        sync.WaitGroup
+}
+
+// Model represents a loaded LLAMA model with its context pool
 type Model struct {
-	ptr    unsafe.Pointer
-	mu     sync.RWMutex
-	closed bool
+	modelPtr unsafe.Pointer // llama_wrapper_model_t* (weights only)
+	pool     *contextPool
+	mu       sync.RWMutex
+	closed   bool
 }
 
 // modelConfig holds configuration for model loading
@@ -35,6 +55,9 @@ type modelConfig struct {
 	embeddings  bool
 	mainGPU     string
 	tensorSplit string
+	minContexts int
+	maxContexts int
+	idleTimeout time.Duration
 }
 
 // generateConfig holds configuration for text generation
@@ -59,6 +82,9 @@ var defaultModelConfig = modelConfig{
 	mlock:       false,
 	mmap:        true,
 	embeddings:  false,
+	minContexts: 1,
+	maxContexts: 1,
+	idleTimeout: 1 * time.Minute,
 }
 
 var defaultGenerateConfig = generateConfig{
@@ -82,6 +108,218 @@ func goTokenCallback(handle C.uintptr_t, token *C.char) C.bool {
 	h := cgo.Handle(handle)
 	callback := h.Value().(func(string) bool)
 	return C.bool(callback(C.GoString(token)))
+}
+
+// newContextPool creates a new context pool with min contexts initialised
+func newContextPool(model unsafe.Pointer, config modelConfig) (*contextPool, error) {
+	pool := &contextPool{
+		model:     model,
+		config:    config,
+		contexts:  make([]*context, 0, config.maxContexts),
+		available: make(chan *context, config.maxContexts),
+		done:      make(chan struct{}),
+	}
+
+	// Convert Go config to C struct for context creation
+	var cMainGPU *C.char
+	if config.mainGPU != "" {
+		cMainGPU = C.CString(config.mainGPU)
+		defer C.free(unsafe.Pointer(cMainGPU))
+	}
+
+	var cTensorSplit *C.char
+	if config.tensorSplit != "" {
+		cTensorSplit = C.CString(config.tensorSplit)
+		defer C.free(unsafe.Pointer(cTensorSplit))
+	}
+
+	params := C.llama_wrapper_model_params{
+		n_ctx:        C.int(config.contextSize),
+		n_batch:      C.int(config.batchSize),
+		n_gpu_layers: C.int(config.gpuLayers),
+		n_threads:    C.int(config.threads),
+		f16_memory:   C.bool(config.f16Memory),
+		mlock:        C.bool(config.mlock),
+		mmap:         C.bool(config.mmap),
+		embeddings:   C.bool(config.embeddings),
+		main_gpu:     cMainGPU,
+		tensor_split: cTensorSplit,
+	}
+
+	// Create min contexts upfront
+	for i := 0; i < config.minContexts; i++ {
+		ctxPtr := C.llama_wrapper_context_create(model, params)
+		if ctxPtr == nil {
+			// Clean up already created contexts
+			pool.close()
+			return nil, fmt.Errorf("failed to create initial context %d: %s", i, C.GoString(C.llama_wrapper_last_error()))
+		}
+
+		ctx := &context{
+			ptr:     ctxPtr,
+			lastUse: time.Now(),
+		}
+		pool.contexts = append(pool.contexts, ctx)
+		pool.available <- ctx
+	}
+
+	// Start cleanup goroutine
+	pool.wg.Add(1)
+	go pool.cleanup()
+
+	return pool, nil
+}
+
+// acquire gets a context from the pool, creating one if needed
+func (p *contextPool) acquire() (*context, error) {
+	select {
+	case ctx := <-p.available:
+		// Got an available context
+		ctx.mu.Lock()
+		return ctx, nil
+	case <-p.done:
+		return nil, fmt.Errorf("pool is closed")
+	default:
+		// No available context - try to create one
+		p.mu.Lock()
+		if len(p.contexts) < p.config.maxContexts {
+			// We can create a new context
+			var cMainGPU *C.char
+			if p.config.mainGPU != "" {
+				cMainGPU = C.CString(p.config.mainGPU)
+				defer C.free(unsafe.Pointer(cMainGPU))
+			}
+
+			var cTensorSplit *C.char
+			if p.config.tensorSplit != "" {
+				cTensorSplit = C.CString(p.config.tensorSplit)
+				defer C.free(unsafe.Pointer(cTensorSplit))
+			}
+
+			params := C.llama_wrapper_model_params{
+				n_ctx:        C.int(p.config.contextSize),
+				n_batch:      C.int(p.config.batchSize),
+				n_gpu_layers: C.int(p.config.gpuLayers),
+				n_threads:    C.int(p.config.threads),
+				f16_memory:   C.bool(p.config.f16Memory),
+				mlock:        C.bool(p.config.mlock),
+				mmap:         C.bool(p.config.mmap),
+				embeddings:   C.bool(p.config.embeddings),
+				main_gpu:     cMainGPU,
+				tensor_split: cTensorSplit,
+			}
+
+			ctxPtr := C.llama_wrapper_context_create(p.model, params)
+			if ctxPtr == nil {
+				p.mu.Unlock()
+				return nil, fmt.Errorf("failed to create context: %s", C.GoString(C.llama_wrapper_last_error()))
+			}
+
+			ctx := &context{
+				ptr:     ctxPtr,
+				lastUse: time.Now(),
+			}
+			p.contexts = append(p.contexts, ctx)
+			p.mu.Unlock()
+
+			ctx.mu.Lock()
+			return ctx, nil
+		}
+		p.mu.Unlock()
+
+		// Max contexts reached - wait for one to become available
+		select {
+		case ctx := <-p.available:
+			ctx.mu.Lock()
+			return ctx, nil
+		case <-p.done:
+			return nil, fmt.Errorf("pool is closed")
+		}
+	}
+}
+
+// release returns a context to the pool
+func (p *contextPool) release(ctx *context) {
+	ctx.lastUse = time.Now()
+	ctx.mu.Unlock()
+
+	select {
+	case p.available <- ctx:
+		// Context returned to pool
+	case <-p.done:
+		// Pool is closed, don't return
+	}
+}
+
+// cleanup runs periodically to destroy idle contexts
+func (p *contextPool) cleanup() {
+	defer p.wg.Done()
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now()
+			var toDestroy []*context
+
+			p.mu.Lock()
+			if len(p.contexts) > p.config.minContexts {
+				// Try to remove idle contexts beyond minimum
+				for i := len(p.contexts) - 1; i >= p.config.minContexts; i-- {
+					ctx := p.contexts[i]
+
+					// Try to acquire from available queue non-blocking
+					select {
+					case availableCtx := <-p.available:
+						if availableCtx == ctx && now.Sub(ctx.lastUse) > p.config.idleTimeout {
+							// This context is idle - mark for destruction
+							toDestroy = append(toDestroy, ctx)
+							// Remove from contexts slice
+							p.contexts = append(p.contexts[:i], p.contexts[i+1:]...)
+						} else {
+							// Not the same context or not idle - put it back
+							select {
+							case p.available <- availableCtx:
+							default:
+								// Channel full, this shouldn't happen but be safe
+							}
+						}
+					default:
+						// Context is in use or queue is empty - skip
+					}
+				}
+			}
+			p.mu.Unlock()
+
+			// Destroy contexts outside the lock
+			for _, ctx := range toDestroy {
+				C.llama_wrapper_context_free(ctx.ptr)
+			}
+
+		case <-p.done:
+			return
+		}
+	}
+}
+
+// close shuts down the pool and frees all contexts
+func (p *contextPool) close() {
+	close(p.done)
+	p.wg.Wait()
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Free all contexts
+	for _, ctx := range p.contexts {
+		if ctx.ptr != nil {
+			C.llama_wrapper_context_free(ctx.ptr)
+		}
+	}
+	p.contexts = nil
+	close(p.available)
 }
 
 // Model loading options
@@ -145,6 +383,25 @@ func WithTensorSplit(split string) ModelOption {
 	}
 }
 
+func WithPoolSize(min, max int) ModelOption {
+	return func(c *modelConfig) {
+		if min < 1 {
+			min = 1
+		}
+		if max < min {
+			max = min
+		}
+		c.minContexts = min
+		c.maxContexts = max
+	}
+}
+
+func WithIdleTimeout(d time.Duration) ModelOption {
+	return func(c *modelConfig) {
+		c.idleTimeout = d
+	}
+}
+
 // Generation options
 func WithMaxTokens(n int) GenerateOption {
 	return func(c *generateConfig) {
@@ -205,7 +462,7 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		opt(&config)
 	}
 
-	// Convert Go config to C struct
+	// Convert Go config to C struct for model loading
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
@@ -234,14 +491,25 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		tensor_split: cTensorSplit,
 	}
 
-	ptr := C.llama_wrapper_model_load(cPath, params)
-	if ptr == nil {
+	// Load model (weights only)
+	modelPtr := C.llama_wrapper_model_load(cPath, params)
+	if modelPtr == nil {
 		return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.llama_wrapper_last_error()))
 	}
 
-	model := &Model{ptr: ptr}
+	// Create context pool
+	pool, err := newContextPool(modelPtr, config)
+	if err != nil {
+		C.llama_wrapper_model_free(modelPtr)
+		return nil, fmt.Errorf("failed to create context pool: %w", err)
+	}
 
-	// Set finalizer to ensure cleanup
+	model := &Model{
+		modelPtr: modelPtr,
+		pool:     pool,
+	}
+
+	// Set finaliser to ensure cleanup
 	runtime.SetFinalizer(model, (*Model).Close)
 
 	return model, nil
@@ -249,7 +517,7 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 
 // Close frees the model and its associated resources
 func (m *Model) Close() error {
-	m.mu.Lock()  // Write lock to block all operations
+	m.mu.Lock() // Write lock to block all operations
 	defer m.mu.Unlock()
 
 	if m.closed {
@@ -259,9 +527,16 @@ func (m *Model) Close() error {
 	// Remove finaliser FIRST to prevent race with GC
 	runtime.SetFinalizer(m, nil)
 
-	if m.ptr != nil {
-		C.llama_wrapper_model_free(m.ptr)
-		m.ptr = nil
+	// Close pool (frees all contexts)
+	if m.pool != nil {
+		m.pool.close()
+		m.pool = nil
+	}
+
+	// Free model
+	if m.modelPtr != nil {
+		C.llama_wrapper_model_free(m.modelPtr)
+		m.modelPtr = nil
 	}
 
 	m.closed = true
@@ -312,12 +587,19 @@ func (m *Model) GenerateWithDraftStream(prompt string, draft *Model, callback fu
 
 // Tokenize converts text to tokens
 func (m *Model) Tokenize(text string) ([]int32, error) {
-	m.mu.RLock()  // Read lock allows concurrent tokenize operations
+	m.mu.RLock() // Read lock to check closed state
 	defer m.mu.RUnlock()
 
-	if m.closed || m.ptr == nil {
+	if m.closed {
 		return nil, fmt.Errorf("model is closed")
 	}
+
+	// Acquire context from pool
+	ctx, err := m.pool.acquire()
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire context: %w", err)
+	}
+	defer m.pool.release(ctx)
 
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
@@ -325,7 +607,7 @@ func (m *Model) Tokenize(text string) ([]int32, error) {
 	maxTokens := 8192 // Reasonable upper bound
 	tokens := make([]C.int, maxTokens)
 
-	count := C.llama_wrapper_tokenize(m.ptr, cText, &tokens[0], C.int(maxTokens))
+	count := C.llama_wrapper_tokenize(ctx.ptr, cText, &tokens[0], C.int(maxTokens))
 	if count < 0 {
 		return nil, fmt.Errorf("tokenization failed: %s", C.GoString(C.llama_wrapper_last_error()))
 	}
@@ -340,12 +622,19 @@ func (m *Model) Tokenize(text string) ([]int32, error) {
 
 // GetEmbeddings computes embeddings for the given text
 func (m *Model) GetEmbeddings(text string) ([]float32, error) {
-	m.mu.RLock()  // Read lock allows concurrent embedding operations
+	m.mu.RLock() // Read lock to check closed state
 	defer m.mu.RUnlock()
 
-	if m.closed || m.ptr == nil {
+	if m.closed {
 		return nil, fmt.Errorf("model is closed")
 	}
+
+	// Acquire context from pool
+	ctx, err := m.pool.acquire()
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire context: %w", err)
+	}
+	defer m.pool.release(ctx)
 
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
@@ -353,7 +642,7 @@ func (m *Model) GetEmbeddings(text string) ([]float32, error) {
 	maxEmbeddings := 4096 // Reasonable upper bound
 	embeddings := make([]C.float, maxEmbeddings)
 
-	count := C.llama_wrapper_embeddings(m.ptr, cText, &embeddings[0], C.int(maxEmbeddings))
+	count := C.llama_wrapper_embeddings(ctx.ptr, cText, &embeddings[0], C.int(maxEmbeddings))
 	if count < 0 {
 		return nil, fmt.Errorf("embedding generation failed: %s", C.GoString(C.llama_wrapper_last_error()))
 	}
@@ -368,13 +657,20 @@ func (m *Model) GetEmbeddings(text string) ([]float32, error) {
 
 // Helper function for regular generation
 func (m *Model) generateWithConfig(prompt string, config generateConfig, callback func(string) bool) (string, error) {
-	// Read lock for the entire C operation to prevent Close() mid-operation
+	// Read lock to check closed state
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if m.closed || m.ptr == nil {
+	if m.closed {
 		return "", fmt.Errorf("model is closed")
 	}
+
+	// Acquire context from pool
+	ctx, err := m.pool.acquire()
+	if err != nil {
+		return "", fmt.Errorf("failed to acquire context: %w", err)
+	}
+	defer m.pool.release(ctx)
 
 	cPrompt := C.CString(prompt)
 	defer C.free(unsafe.Pointer(cPrompt))
@@ -418,7 +714,7 @@ func (m *Model) generateWithConfig(prompt string, config generateConfig, callbac
 		callback_handle:  callbackHandle,
 	}
 
-	result := C.llama_wrapper_generate(m.ptr, params)
+	result := C.llama_wrapper_generate(ctx.ptr, params)
 
 	// Clean up handle if it was created
 	if callback != nil {
@@ -435,18 +731,31 @@ func (m *Model) generateWithConfig(prompt string, config generateConfig, callbac
 
 // Helper function for speculative generation
 func (m *Model) generateWithDraftAndConfig(prompt string, draft *Model, config generateConfig, callback func(string) bool) (string, error) {
-	// Read lock both models for the entire C operation
+	// Read lock both models to check closed state
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	draft.mu.RLock()
 	defer draft.mu.RUnlock()
 
-	if m.closed || m.ptr == nil {
+	if m.closed {
 		return "", fmt.Errorf("model is closed")
 	}
-	if draft.closed || draft.ptr == nil {
+	if draft.closed {
 		return "", fmt.Errorf("draft model is closed")
 	}
+
+	// Acquire contexts from both pools
+	ctx, err := m.pool.acquire()
+	if err != nil {
+		return "", fmt.Errorf("failed to acquire target context: %w", err)
+	}
+	defer m.pool.release(ctx)
+
+	draftCtx, err := draft.pool.acquire()
+	if err != nil {
+		return "", fmt.Errorf("failed to acquire draft context: %w", err)
+	}
+	defer draft.pool.release(draftCtx)
 
 	cPrompt := C.CString(prompt)
 	defer C.free(unsafe.Pointer(cPrompt))
@@ -491,7 +800,7 @@ func (m *Model) generateWithDraftAndConfig(prompt string, draft *Model, config g
 		callback_handle:  callbackHandle,
 	}
 
-	result := C.llama_wrapper_generate_draft(m.ptr, draft.ptr, params)
+	result := C.llama_wrapper_generate_draft(ctx.ptr, draftCtx.ptr, params)
 
 	// Clean up handle if it was created
 	if callback != nil {
