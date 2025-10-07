@@ -1,3 +1,22 @@
+// Simple example demonstrates basic text generation using llama-go.
+//
+// This program loads a GGUF model and generates text from a single prompt,
+// showcasing the core functionality of the library. It supports customising
+// generation parameters via command-line flags including temperature, top-p/top-k
+// sampling, seed, and GPU acceleration.
+//
+// Usage:
+//
+//	simple -m model.gguf -p "prompt text" -n 100
+//
+// The example demonstrates:
+//   - Loading a GGUF model with configuration options
+//   - Performing synchronous text generation
+//   - Customising sampling parameters
+//   - GPU layer offloading for acceleration
+//   - Proper resource cleanup with defer
+//
+// This is the recommended starting point for new users of llama-go.
 package main
 
 import (

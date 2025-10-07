@@ -1,3 +1,29 @@
+// Speculative example demonstrates speculative decoding for faster generation.
+//
+// This program loads two models - a large target model and a smaller draft
+// model - and uses speculative decoding to accelerate text generation. The
+// draft model generates candidate tokens which the target model verifies in
+// parallel, reducing overall latency whilst maintaining the target model's
+// quality.
+//
+// Usage:
+//
+//	speculative -target large-model.gguf -draft small-model.gguf -p "prompt"
+//
+// Speculative decoding works best when:
+//   - The draft model is significantly smaller than the target (e.g. 1-3B vs 70B)
+//   - Both models share similar vocabularies and tokenisation
+//   - Generation requires many tokens (speedup compounds over longer outputs)
+//
+// The example demonstrates:
+//   - Loading and managing multiple models simultaneously
+//   - Configuring speculative decoding with draft token count
+//   - Measuring performance improvements from speculation
+//   - Proper resource cleanup for multiple model instances
+//
+// Typical speedups range from 1.5× to 3× depending on model sizes and acceptance
+// rates. The technique is particularly effective for large models where inference
+// latency is high.
 package main
 
 import (

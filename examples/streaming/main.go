@@ -1,3 +1,27 @@
+// Streaming example demonstrates token-by-token generation using callbacks.
+//
+// This interactive program loads a GGUF model and accepts multi-line prompts,
+// streaming generated tokens to stdout as they're produced. This showcases
+// real-time response generation suitable for chat interfaces or interactive
+// applications.
+//
+// Usage:
+//
+//	streaming -m model.gguf
+//
+// The program prompts for input interactively. Enter your prompt on one or
+// more lines, then submit with an empty line. Generated text streams to stdout
+// token-by-token as the model produces it.
+//
+// The example demonstrates:
+//   - Streaming generation with callbacks
+//   - Interactive multi-line input handling
+//   - Real-time token output
+//   - Stop word configuration for controlled responses
+//   - Graceful error handling during generation
+//
+// This pattern is ideal for building chat applications, REPLs, or any interface
+// requiring immediate feedback during generation.
 package main
 
 import (

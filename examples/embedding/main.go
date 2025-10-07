@@ -1,3 +1,32 @@
+// Embedding example demonstrates generating text embeddings for semantic tasks.
+//
+// This program loads a GGUF embedding model and computes vector representations
+// of input text. Embeddings are useful for semantic search, clustering, similarity
+// comparison, and other machine learning tasks that require numerical representations
+// of text.
+//
+// Usage:
+//
+//	embedding -m embedding-model.gguf -t "text to embed"
+//
+// The model must be loaded with embedding support enabled (WithEmbeddings option).
+// Not all models support embeddings - check model documentation before use. Typical
+// embedding models include sentence transformers and specialised embedding variants.
+//
+// The example demonstrates:
+//   - Loading models in embedding mode
+//   - Generating embeddings from text
+//   - Inspecting embedding vector properties
+//   - Computing basic embedding statistics
+//
+// Embeddings can be used for:
+//   - Semantic search (finding similar documents)
+//   - Clustering (grouping related texts)
+//   - Classification (ML training features)
+//   - Similarity scoring (comparing text meaning)
+//
+// Output includes the embedding dimension, sample values, and basic magnitude
+// statistics to verify the embedding generation succeeded.
 package main
 
 import (
