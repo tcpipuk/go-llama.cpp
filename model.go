@@ -77,7 +77,7 @@ type generateConfig struct {
 
 // Default configurations
 var defaultModelConfig = modelConfig{
-	contextSize:   2048,
+	contextSize:   0,    // 0 = use model's native maximum (queried after load)
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
@@ -306,6 +306,30 @@ func (p *contextPool) close() {
 }
 
 // Model loading options
+
+// WithContext sets the context window size in tokens.
+//
+// The context size determines how many tokens (prompt + generation) the model
+// can process. By default, the library uses the model's native maximum context
+// length (e.g. 32768 for Qwen3, 128000 for Gemma 3 models >4B).
+//
+// Override this if you need to limit memory usage or have specific requirements.
+//
+// IMPORTANT: Very small context sizes (< 64 tokens) may cause llama.cpp to
+// crash internally. The library provides defensive checks but cannot prevent
+// all edge cases with absurdly small contexts.
+//
+// Default: 0 (uses model's native maximum from GGUF metadata)
+//
+// Examples:
+//
+//	// Use model's full capability (default)
+//	model, err := llama.LoadModel("model.gguf")
+//
+//	// Limit to 8K for memory savings
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithContext(8192),
+//	)
 func WithContext(size int) ModelOption {
 	return func(c *modelConfig) {
 		c.contextSize = size
@@ -506,6 +530,12 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 	modelPtr := C.llama_wrapper_model_load(cPath, params)
 	if modelPtr == nil {
 		return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.llama_wrapper_last_error()))
+	}
+
+	// Query model's native context if user didn't specify
+	if config.contextSize == 0 {
+		nativeContext := int(C.llama_wrapper_get_model_context_length(modelPtr))
+		config.contextSize = nativeContext
 	}
 
 	// Create context pool

@@ -71,6 +71,25 @@ model, err := llama.LoadModel(
 )
 ```
 
+#### Context size configuration
+
+By default, the library uses the model's native maximum context length from GGUF metadata (e.g.
+32768 for Qwen3, 128000 for Gemma 3 models). This gives you the full capability of the model
+without artificial limits.
+
+You can override this if needed:
+
+```go
+model, err := llama.LoadModel(
+    "/path/to/model.gguf",
+    llama.WithContext(8192),  // Limit to 8K tokens (e.g. to save memory)
+)
+```
+
+**Note**: Very small context sizes (< 64 tokens) may cause llama.cpp to crash internally. The
+library provides defensive checks where possible, but cannot prevent all edge cases. This is not a
+practical concern for real usage.
+
 ### GPU acceleration
 
 ```go

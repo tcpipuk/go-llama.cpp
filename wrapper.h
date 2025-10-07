@@ -68,6 +68,9 @@ void llama_wrapper_free_result(char* result);
 const char* llama_wrapper_last_error();
 int llama_wrapper_get_cached_token_count(void* ctx);
 
+// Get model's native maximum context length
+int llama_wrapper_get_model_context_length(void* model);
+
 #ifdef __cplusplus
 }
 #endif

@@ -147,6 +147,21 @@ void llama_wrapper_context_free(void* ctx) {
     delete wrapper;
 }
 
+// Get model's native maximum context length from GGUF metadata
+int llama_wrapper_get_model_context_length(void* model) {
+    if (!model) {
+        return 32768;  // Fallback if model is null
+    }
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+
+    // Query model's native context length from GGUF metadata
+    int n_ctx_train = llama_model_n_ctx_train(model_wrapper->model);
+
+    // Return model's training context, or reasonable fallback
+    return (n_ctx_train > 0) ? n_ctx_train : 32768;
+}
+
 // Helper function to find common prefix length between two token vectors
 static int findCommonPrefix(const std::vector<int>& a, const std::vector<int>& b) {
     int commonLen = 0;
@@ -177,21 +192,34 @@ char* llama_wrapper_generate_with_tokens(void* ctx, const int* tokens, int n_tok
             return nullptr;
         }
 
-        // Clear KV cache from divergence point onwards
-        // For full cache hits, we'll refresh the last prompt token, so clear from prefix_len - 1
-        // For partial matches, clear from prefix_len as usual
-        int clear_from = (prefix_len == n_tokens && n_tokens > 0) ? prefix_len - 1 : prefix_len;
-        llama_memory_seq_rm(llama_get_memory(wrapper->ctx), 0, clear_from, -1);
-
-        // Check context size with safety margin
+        // Check context size with safety margin BEFORE manipulating KV cache
         int available_ctx = llama_n_ctx(wrapper->ctx);
         if (available_ctx <= 0) {
             g_last_error = "Invalid context size";
             return nullptr;
         }
+        // Check if prompt fits with room for at least a few generated tokens
+        int tokens_needed = (int)prompt_tokens.size() + params.max_tokens;
+        if (tokens_needed > available_ctx) {
+            char err_msg[256];
+            snprintf(err_msg, sizeof(err_msg),
+                    "Prompt too long for context size: need %d tokens (%d prompt + %d generation) but context is only %d tokens",
+                    tokens_needed, (int)prompt_tokens.size(), params.max_tokens > 0 ? params.max_tokens : 128, available_ctx);
+            g_last_error = err_msg;
+            return nullptr;
+        }
         if ((int)prompt_tokens.size() >= available_ctx - 1) {
             g_last_error = "Prompt too long for context size (need at least 1 token for generation)";
             return nullptr;
+        }
+
+        // Clear KV cache from divergence point onwards
+        // For full cache hits, we'll refresh the last prompt token, so clear from prefix_len - 1
+        // For partial matches, clear from prefix_len as usual
+        int clear_from = (prefix_len == n_tokens && n_tokens > 0) ? prefix_len - 1 : prefix_len;
+        // Only clear if clear_from is valid and within context bounds
+        if (clear_from >= 0 && clear_from < available_ctx) {
+            llama_memory_seq_rm(llama_get_memory(wrapper->ctx), 0, clear_from, -1);
         }
 
         // Create sampling parameters - use the struct directly instead of calling a function
@@ -209,12 +237,13 @@ char* llama_wrapper_generate_with_tokens(void* ctx, const int* tokens, int n_tok
         }
 
         // Validate generation parameters
-        int n_predict = params.max_tokens > 0 ? params.max_tokens : 128;
-        if (n_predict <= 0 || n_predict > 8192) {
+        // Reject negative max_tokens (0 is allowed and means "use default")
+        if (params.max_tokens < 0) {
             common_sampler_free(sampler);
-            g_last_error = "Invalid max_tokens value (must be 1-8192)";
+            g_last_error = "Invalid max_tokens value (must be >= 0)";
             return nullptr;
         }
+        int n_predict = params.max_tokens > 0 ? params.max_tokens : 128;
 
         // After clearing cache from prefix_len onwards, cache ends at prefix_len - 1
         // Next position to use is prefix_len

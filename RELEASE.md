@@ -128,7 +128,7 @@ For projects requiring GPU acceleration, test CUDA support:
    ```bash
    docker build -f Dockerfile.cuda -t go-llama-cuda .
 
-   # Build for specific GPU architecture (e.g., RTX 3090)
+   # Build for specific GPU architecture (e.g. RTX 3090)
    docker run --rm --gpus all -v $(pwd):/workspace go-llama-cuda \
      bash -c "CUDA_ARCHITECTURES=86 BUILD_TYPE=cublas make libbinding.a"
    ```
