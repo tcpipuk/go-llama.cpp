@@ -3,8 +3,9 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/tcpipuk/llama-go.svg)](https://pkg.go.dev/github.com/tcpipuk/llama-go)
 
 Go bindings for [llama.cpp](https://github.com/ggml-org/llama.cpp), enabling you to run large
-language models locally with hardware acceleration support. Integrate LLM inference directly into Go
-applications with a clean, idiomatic API.
+language models locally with GPU acceleration. Production-ready library with thread-safe concurrent
+inference and comprehensive test coverage. Integrate LLM inference directly into Go applications
+with a clean, idiomatic API.
 
 This is an active fork of [go-skynet/go-llama.cpp](https://github.com/go-skynet/go-llama.cpp),
 which hasn't been maintained since October 2023. The goal is keeping Go developers up-to-date with
@@ -16,6 +17,10 @@ new development, use `github.com/tcpipuk/llama-go`.
 
 **Releases**: This fork's tags follow llama.cpp releases using the format `llama.cpp-{tag}` (e.g.
 `llama.cpp-b6603`). This ensures compatibility tracking with the underlying C++ library.
+
+**Documentation**: See [getting started guide](docs/getting-started.md) for detailed instructions,
+[API guide](docs/api-guide.md) for usage patterns, and
+[llama.cpp](https://github.com/ggml-org/llama.cpp) for model format and engine details.
 
 ## Quick start
 
@@ -74,9 +79,33 @@ When building, set these environment variables:
 export LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD LD_LIBRARY_PATH=$PWD
 ```
 
-## Thread safety
+## Key capabilities
 
-The library is not thread-safe. For concurrent usage, implement a pool pattern as shown in the [API guide](docs/api-guide.md#thread-safety).
+**Text generation and embeddings**: Generate text with LLMs or extract embeddings for semantic
+search, clustering, and similarity tasks.
+
+**GPU acceleration**: Supports NVIDIA (CUDA), AMD (ROCm), Apple Silicon (Metal), Intel (SYCL), and
+cross-platform acceleration (Vulkan, OpenCL). Eight backend options cover virtually all modern GPU
+hardware, plus distributed inference via RPC.
+
+**Production ready**: Comprehensive test suite with almost 400 test cases and CI validation
+including CUDA builds. Active development tracking llama.cpp releases - maintained for production
+use, not a demo project.
+
+**Advanced features**: Cache common prompt prefixes to avoid recomputing system prompts across
+thousands of generations. Serve multiple concurrent requests with a single model loaded in VRAM (no
+weight duplication). Stream tokens as they generate for ChatGPT-style typing effects. Speculative
+decoding for 2-3× generation speedup.
+
+## Requirements
+
+- Go 1.25+
+- Docker (recommended) or C++ compiler with CMake
+- Git with submodule support
+
+The library uses the GGUF model format, which is the current standard for llama.cpp. For legacy
+GGML format support, use the
+[pre-gguf tag](https://github.com/tcpipuk/llama-go/releases/tag/pre-gguf).
 
 ## Documentation
 
@@ -92,16 +121,6 @@ The library is not thread-safe. For concurrent usage, implement a pool pattern a
 - [Go package documentation](https://pkg.go.dev/github.com/tcpipuk/llama-go) - Full API reference
 - [RELEASE.md](RELEASE.md) - Release process and compatibility tracking
 
-## Requirements
-
-- Go 1.25+
-- Docker (recommended) or C++ compiler with CMake
-- Git with submodule support
-
-The library uses the GGUF model format, which is the current standard for llama.cpp. For legacy
-GGML format support, use the
-[pre-gguf tag](https://github.com/tcpipuk/llama-go/releases/tag/pre-gguf).
-
 ## Architecture
 
 The library bridges Go and C++ using CGO, keeping the heavy computation in llama.cpp's optimised
@@ -111,11 +130,12 @@ performance.
 Key components:
 
 - `wrapper.cpp`/`wrapper.h` - CGO interface to llama.cpp
-- `model.go` - Go API using functional options pattern
-- `llama.cpp/` - Git submodule containing upstream llama.cpp
+- Clean Go API with comprehensive godoc comments
+- `llama.cpp/` - Git submodule tracking upstream releases
 
-The design uses functional options for configuration, resource management with finalizers, and
-streaming callbacks via cgo.Handle for safe Go-C interaction.
+The design uses functional options for configuration, dynamic context pooling for thread safety,
+automatic KV cache prefix reuse for performance, resource management with finalizers, and streaming
+callbacks via cgo.Handle for safe Go-C interaction.
 
 ## Licence
 
