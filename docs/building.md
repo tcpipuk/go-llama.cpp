@@ -163,11 +163,14 @@ and link with the required libraries:
 
 | Backend | Build command | CGO flags | Notes |
 |---------|---------------|-----------|-------|
-| OpenBLAS | `BUILD_TYPE=openblas make libbinding.a` | `-lopenblas` | CPU acceleration |
 | CUDA | `BUILD_TYPE=cublas make libbinding.a` | `-lcublas -lcudart -L/usr/local/cuda/lib64/` | NVIDIA GPUs |
-| ROCm | `BUILD_TYPE=hipblas make libbinding.a` | `-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas` | AMD GPUs, requires ROCm compilers |
 | Metal | `BUILD_TYPE=metal make libbinding.a` | `-framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders` | Apple Silicon |
-| OpenCL | `BUILD_TYPE=clblas make libbinding.a` | `-lOpenCL -lclblast -L/usr/local/lib64/` | Cross-platform GPU |
+| OpenBLAS | `BUILD_TYPE=openblas make libbinding.a` | `-lopenblas` | CPU acceleration |
+| OpenCL | `BUILD_TYPE=opencl make libbinding.a` | `-lOpenCL` (Linux), `-framework OpenCL` (macOS) | Broad compatibility including mobile GPUs |
+| RPC | `BUILD_TYPE=rpc make libbinding.a` | `-lpthread` | Distributed inference across machines |
+| ROCm | `BUILD_TYPE=hipblas make libbinding.a` | `-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas` | AMD GPUs, requires ROCm compilers |
+| SYCL | `BUILD_TYPE=sycl make libbinding.a` | `-lsycl -L/opt/intel/oneapi/compiler/latest/linux/lib` | Intel Arc/Xe GPUs, optional NVIDIA/AMD |
+| Vulkan | `BUILD_TYPE=vulkan make libbinding.a` | `-lvulkan -L/usr/lib/x86_64-linux-gnu` | Cross-platform GPU (NVIDIA, AMD, Intel, ARM) |
 
 ### CUDA acceleration example
 
