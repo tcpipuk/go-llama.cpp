@@ -52,6 +52,7 @@ static struct llama_model_params convert_model_params(llama_wrapper_model_params
     model_params.main_gpu = params.main_gpu ? atoi(params.main_gpu) : 0;
     model_params.use_mmap = params.mmap;
     model_params.use_mlock = params.mlock;
+    model_params.no_host = false;  // Use host buffers (b6709 added field)
 
     return model_params;
 }
@@ -435,7 +436,7 @@ char* llama_wrapper_generate(void* ctx, llama_wrapper_generate_params params) {
         std::vector<llama_token> prompt_tokens = common_tokenize(wrapper->ctx, params.prompt, true, true);
 
         if (prompt_tokens.empty()) {
-            g_last_error = "Failed to tokenise prompt";
+            g_last_error = "Failed to tokenize prompt";
             return nullptr;
         }
 
@@ -597,16 +598,17 @@ char* llama_wrapper_generate_draft_with_tokens(void* ctx_target, void* ctx_draft
                 break;
             }
 
-            // Update position tracking - FIXED: only increment by actual accepted tokens
-            n_past += ids.size();
+            // Process accepted tokens - track actual count in case of early termination
+            size_t tokens_processed = 0;
+            bool early_termination = false;
 
-            // Process accepted tokens
             for (size_t i = 0; i < ids.size(); ++i) {
                 const llama_token id = ids[i];
 
                 // Check for EOS
                 if (llama_vocab_is_eog(llama_model_get_vocab(wrapper_tgt->model), id)) {
-                    goto speculative_done;
+                    early_termination = true;
+                    break;
                 }
 
                 const std::string token_str = common_token_to_piece(wrapper_tgt->ctx, id);
@@ -614,28 +616,53 @@ char* llama_wrapper_generate_draft_with_tokens(void* ctx_target, void* ctx_draft
                 // Call callback if provided
                 if (params.callback_handle != 0) {
                     if (!goTokenCallback(params.callback_handle, token_str.c_str())) {
-                        goto speculative_done;
+                        early_termination = true;
+                        break;
                     }
                 }
 
                 result += token_str;
                 prompt_tgt.push_back(id);
+                tokens_processed++;
 
                 // Check stop words
                 for (int j = 0; j < params.stop_words_count; j++) {
                     if (result.find(params.stop_words[j]) != std::string::npos) {
-                        goto speculative_done;
+                        early_termination = true;
+                        goto early_exit;
                     }
                 }
             }
 
+early_exit:
+            // Update position tracking based on tokens actually processed
+            if (early_termination) {
+                n_past += tokens_processed;
+                if (params.debug) {
+                    fprintf(stderr, "DEBUG: Early termination after processing %zu/%zu tokens\n",
+                            tokens_processed, ids.size());
+                }
+            } else {
+                n_past += ids.size();
+            }
+
+            // Clean up any unaccepted/unprocessed tokens from KV cache
+            // This removes everything from position n_past onwards, ensuring the cache
+            // only contains tokens we've actually processed and accepted
+            llama_memory_seq_rm(llama_get_memory(wrapper_tgt->ctx), 0, n_past, -1);
+
             // Update last token for next iteration
-            if (!ids.empty()) {
-                last_token = ids.back();
+            if (tokens_processed > 0) {
+                // Use the last token we actually processed
+                last_token = prompt_tgt[prompt_tgt.size() - 1];
+            }
+
+            // Break if early termination
+            if (early_termination) {
+                break;
             }
         }
 
-speculative_done:
         llama_batch_free(batch_tgt);
         common_sampler_free(sampler);
         common_speculative_free(spec);
@@ -671,7 +698,7 @@ char* llama_wrapper_generate_draft(void* ctx_target, void* ctx_draft, llama_wrap
         std::vector<llama_token> prompt_tokens = common_tokenize(wrapper_tgt->ctx, params.prompt, true, true);
 
         if (prompt_tokens.empty()) {
-            g_last_error = "Failed to tokenise prompt";
+            g_last_error = "Failed to tokenize prompt";
             return nullptr;
         }
 

@@ -61,8 +61,8 @@ var _ = Describe("Model.Tokenize", func() {
 			Expect(err).NotTo(HaveOccurred())
 			tokens2, err := model.Tokenize("Hello")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(tokens1).To(Equal(tokens2), "should produce consistent tokens including BOS")
-			Expect(len(tokens1)).To(BeNumerically(">", 1), "should have BOS + content tokens")
+			Expect(tokens1).To(Equal(tokens2), "should produce consistent tokens")
+			Expect(len(tokens1)).To(BeNumerically(">=", 1), "should have at least content tokens (BOS optional per model)")
 		})
 	})
 
