@@ -12,14 +12,9 @@ which hasn't been maintained since October 2023. The goal is keeping Go develope
 llama.cpp whilst offering a lighter, more performant alternative to Python-based ML stacks like
 PyTorch and/or vLLM.
 
-**Note**: Historical tags use the original module path `github.com/go-skynet/go-llama.cpp`. For
-new development, use `github.com/tcpipuk/llama-go`.
-
-**Releases**: This fork's tags follow llama.cpp releases using the format `llama.cpp-{tag}` (e.g.
-`llama.cpp-b6603`). This ensures compatibility tracking with the underlying C++ library.
-
-**Documentation**: See [getting started guide](docs/getting-started.md) for detailed instructions,
-[API guide](docs/api-guide.md) for usage patterns, and
+**Documentation**: See [getting started guide](docs/getting-started.md),
+[building guide](docs/building.md), [API guide](docs/api-guide.md), [examples](examples/README.md),
+[Go package docs](https://pkg.go.dev/github.com/tcpipuk/llama-go), and
 [llama.cpp](https://github.com/ggml-org/llama.cpp) for model format and engine details.
 
 ## Quick start
@@ -39,9 +34,6 @@ wget https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gg
 export LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD LD_LIBRARY_PATH=$PWD
 go run ./examples/simple -m Qwen3-0.6B-Q8_0.gguf -p "Hello world" -n 50
 ```
-
-See [getting started guide](docs/getting-started.md) for detailed instructions and
-[examples](examples/README.md) for more usage patterns.
 
 ## Basic usage
 
@@ -96,30 +88,6 @@ use, not a demo project.
 thousands of generations. Serve multiple concurrent requests with a single model loaded in VRAM (no
 weight duplication). Stream tokens as they generate for ChatGPT-style typing effects. Speculative
 decoding for 2-3× generation speedup.
-
-## Requirements
-
-- Go 1.25+
-- Docker (recommended) or C++ compiler with CMake
-- Git with submodule support
-
-The library uses the GGUF model format, which is the current standard for llama.cpp. For legacy
-GGML format support, use the
-[pre-gguf tag](https://github.com/tcpipuk/llama-go/releases/tag/pre-gguf).
-
-## Documentation
-
-### Essential guides
-
-- **[Getting started](docs/getting-started.md)** - Complete walkthrough from installation to first inference
-- **[Building guide](docs/building.md)** - Build options, hardware acceleration, and troubleshooting
-- **[API guide](docs/api-guide.md)** - Detailed usage examples, configuration options, and thread safety
-
-### Quick references
-
-- **[Examples](examples/README.md)** - CLI example with build instructions and usage options
-- [Go package documentation](https://pkg.go.dev/github.com/tcpipuk/llama-go) - Full API reference
-- [RELEASE.md](RELEASE.md) - Release process and compatibility tracking
 
 ## Architecture
 
