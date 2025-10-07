@@ -16,7 +16,7 @@ func main() {
 		modelPath = flag.String("m", "./Qwen3-0.6B-Q8_0.gguf", "path to GGUF model file")
 		maxTokens = flag.Int("n", 512, "maximum number of tokens to generate")
 		context   = flag.Int("c", 2048, "context size")
-		gpuLayers = flag.Int("ngl", 0, "number of GPU layers")
+		gpuLayers = flag.Int("ngl", -1, "number of GPU layers (-1 for all)")
 		temp      = flag.Float64("temp", 0.8, "temperature for sampling")
 		topP      = flag.Float64("top-p", 0.9, "top-p for sampling")
 		topK      = flag.Int("top-k", 40, "top-k for sampling")

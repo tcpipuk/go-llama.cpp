@@ -16,7 +16,7 @@ func main() {
 		prompt      = flag.String("p", "The capital of France is", "prompt for generation")
 		maxTokens   = flag.Int("n", 100, "maximum number of tokens to generate")
 		context     = flag.Int("c", 2048, "context size")
-		gpuLayers   = flag.Int("ngl", 0, "number of GPU layers")
+		gpuLayers   = flag.Int("ngl", -1, "number of GPU layers (-1 for all)")
 		temp        = flag.Float64("temp", 0.7, "temperature for sampling")
 		draftTokens = flag.Int("draft-tokens", 16, "number of draft tokens per iteration")
 		debug       = flag.Bool("debug", false, "enable debug output")

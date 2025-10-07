@@ -13,7 +13,7 @@ func main() {
 	var (
 		modelPath = flag.String("m", "./Qwen3-Embedding-0.6B-Q8_0.gguf", "path to GGUF embedding model file")
 		text      = flag.String("t", "Hello world", "text to get embeddings for")
-		gpuLayers = flag.Int("ngl", 0, "number of GPU layers")
+		gpuLayers = flag.Int("ngl", -1, "number of GPU layers (-1 for all)")
 		context   = flag.Int("c", 2048, "context size")
 	)
 	flag.Parse()
