@@ -36,17 +36,17 @@ func newContextPool(model unsafe.Pointer, config modelConfig) (*contextPool, err
 	}
 
 	params := C.llama_wrapper_model_params{
-		n_ctx:          C.int(config.contextSize),
-		n_batch:        C.int(config.batchSize),
-		n_gpu_layers:   C.int(config.gpuLayers),
-		n_threads:      C.int(config.threads),
+		n_ctx:           C.int(config.contextSize),
+		n_batch:         C.int(config.batchSize),
+		n_gpu_layers:    C.int(config.gpuLayers),
+		n_threads:       C.int(config.threads),
 		n_threads_batch: C.int(config.threadsBatch),
-		f16_memory:     C.bool(config.f16Memory),
-		mlock:          C.bool(config.mlock),
-		mmap:           C.bool(config.mmap),
-		embeddings:     C.bool(config.embeddings),
-		main_gpu:       cMainGPU,
-		tensor_split:   cTensorSplit,
+		f16_memory:      C.bool(config.f16Memory),
+		mlock:           C.bool(config.mlock),
+		mmap:            C.bool(config.mmap),
+		embeddings:      C.bool(config.embeddings),
+		main_gpu:        cMainGPU,
+		tensor_split:    cTensorSplit,
 	}
 
 	// Create min contexts upfront
@@ -100,17 +100,17 @@ func (p *contextPool) acquire() (*context, error) {
 			}
 
 			params := C.llama_wrapper_model_params{
-				n_ctx:          C.int(p.config.contextSize),
-				n_batch:        C.int(p.config.batchSize),
-				n_gpu_layers:   C.int(p.config.gpuLayers),
-				n_threads:      C.int(p.config.threads),
+				n_ctx:           C.int(p.config.contextSize),
+				n_batch:         C.int(p.config.batchSize),
+				n_gpu_layers:    C.int(p.config.gpuLayers),
+				n_threads:       C.int(p.config.threads),
 				n_threads_batch: C.int(p.config.threadsBatch),
-				f16_memory:     C.bool(p.config.f16Memory),
-				mlock:          C.bool(p.config.mlock),
-				mmap:           C.bool(p.config.mmap),
-				embeddings:     C.bool(p.config.embeddings),
-				main_gpu:       cMainGPU,
-				tensor_split:   cTensorSplit,
+				f16_memory:      C.bool(p.config.f16Memory),
+				mlock:           C.bool(p.config.mlock),
+				mmap:            C.bool(p.config.mmap),
+				embeddings:      C.bool(p.config.embeddings),
+				main_gpu:        cMainGPU,
+				tensor_split:    cTensorSplit,
 			}
 
 			ctxPtr := C.llama_wrapper_context_create(p.model, params)

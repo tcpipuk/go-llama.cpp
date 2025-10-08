@@ -78,18 +78,73 @@ func (m *Model) generateWithConfig(prompt string, config generateConfig, callbac
 		callbackHandle = C.uintptr_t(handle)
 	}
 
+	// Convert DRY sequence breakers to C array
+	var cDryBreakers **C.char
+	var dryBreakersCount C.int
+	if len(config.drySequenceBreakers) > 0 {
+		dryBreakersCount = C.int(len(config.drySequenceBreakers))
+		cDryBreakersArray := make([]*C.char, len(config.drySequenceBreakers))
+		for i, breaker := range config.drySequenceBreakers {
+			cDryBreakersArray[i] = C.CString(breaker)
+		}
+		defer func() {
+			for _, ptr := range cDryBreakersArray {
+				C.free(unsafe.Pointer(ptr))
+			}
+		}()
+		cDryBreakers = (**C.char)(unsafe.Pointer(&cDryBreakersArray[0]))
+	}
+
 	params := C.llama_wrapper_generate_params{
 		prompt:                cPrompt,
 		max_tokens:            C.int(config.maxTokens),
-		temperature:           C.float(config.temperature),
-		top_p:                 C.float(config.topP),
-		top_k:                 C.int(config.topK),
 		seed:                  C.int(config.seed),
 		stop_words:            cStopWords,
 		stop_words_count:      stopWordsCount,
 		debug:                 C.bool(config.debug),
 		callback_handle:       callbackHandle,
 		enable_prefix_caching: C.bool(config.prefixCaching),
+
+		// Basic sampling parameters
+		temperature: C.float(config.temperature),
+		top_k:       C.int(config.topK),
+		top_p:       C.float(config.topP),
+		min_p:       C.float(config.minP),
+		typ_p:       C.float(config.typP),
+		top_n_sigma: C.float(config.topNSigma),
+		min_keep:    C.int(config.minKeep),
+
+		// Repetition penalties
+		penalty_last_n:  C.int(config.penaltyLastN),
+		penalty_repeat:  C.float(config.penaltyRepeat),
+		penalty_freq:    C.float(config.penaltyFreq),
+		penalty_present: C.float(config.penaltyPresent),
+
+		// DRY sampling
+		dry_multiplier:              C.float(config.dryMultiplier),
+		dry_base:                    C.float(config.dryBase),
+		dry_allowed_length:          C.int(config.dryAllowedLength),
+		dry_penalty_last_n:          C.int(config.dryPenaltyLastN),
+		dry_sequence_breakers:       cDryBreakers,
+		dry_sequence_breakers_count: dryBreakersCount,
+
+		// Dynamic temperature
+		dynatemp_range:    C.float(config.dynatempRange),
+		dynatemp_exponent: C.float(config.dynatempExponent),
+
+		// XTC sampling
+		xtc_probability: C.float(config.xtcProbability),
+		xtc_threshold:   C.float(config.xtcThreshold),
+
+		// Mirostat sampling
+		mirostat:     C.int(config.mirostat),
+		mirostat_tau: C.float(config.mirostatTau),
+		mirostat_eta: C.float(config.mirostatEta),
+
+		// Other parameters
+		n_prev:     C.int(config.nPrev),
+		n_probs:    C.int(config.nProbs),
+		ignore_eos: C.bool(config.ignoreEOS),
 	}
 
 	// Call simple generation (handles tokenisation and prefix caching in C++)
@@ -166,12 +221,26 @@ func (m *Model) generateWithDraftAndConfig(prompt string, draft *Model, config g
 		callbackHandle = C.uintptr_t(handle)
 	}
 
+	// Convert DRY sequence breakers to C array
+	var cDryBreakers2 **C.char
+	var dryBreakersCount2 C.int
+	if len(config.drySequenceBreakers) > 0 {
+		dryBreakersCount2 = C.int(len(config.drySequenceBreakers))
+		cDryBreakersArray2 := make([]*C.char, len(config.drySequenceBreakers))
+		for i, breaker := range config.drySequenceBreakers {
+			cDryBreakersArray2[i] = C.CString(breaker)
+		}
+		defer func() {
+			for _, ptr := range cDryBreakersArray2 {
+				C.free(unsafe.Pointer(ptr))
+			}
+		}()
+		cDryBreakers2 = (**C.char)(unsafe.Pointer(&cDryBreakersArray2[0]))
+	}
+
 	params := C.llama_wrapper_generate_params{
 		prompt:                cPrompt,
 		max_tokens:            C.int(config.maxTokens),
-		temperature:           C.float(config.temperature),
-		top_p:                 C.float(config.topP),
-		top_k:                 C.int(config.topK),
 		seed:                  C.int(config.seed),
 		stop_words:            cStopWords,
 		stop_words_count:      stopWordsCount,
@@ -179,6 +248,47 @@ func (m *Model) generateWithDraftAndConfig(prompt string, draft *Model, config g
 		debug:                 C.bool(config.debug),
 		callback_handle:       callbackHandle,
 		enable_prefix_caching: C.bool(config.prefixCaching),
+
+		// Basic sampling parameters
+		temperature: C.float(config.temperature),
+		top_k:       C.int(config.topK),
+		top_p:       C.float(config.topP),
+		min_p:       C.float(config.minP),
+		typ_p:       C.float(config.typP),
+		top_n_sigma: C.float(config.topNSigma),
+		min_keep:    C.int(config.minKeep),
+
+		// Repetition penalties
+		penalty_last_n:  C.int(config.penaltyLastN),
+		penalty_repeat:  C.float(config.penaltyRepeat),
+		penalty_freq:    C.float(config.penaltyFreq),
+		penalty_present: C.float(config.penaltyPresent),
+
+		// DRY sampling
+		dry_multiplier:              C.float(config.dryMultiplier),
+		dry_base:                    C.float(config.dryBase),
+		dry_allowed_length:          C.int(config.dryAllowedLength),
+		dry_penalty_last_n:          C.int(config.dryPenaltyLastN),
+		dry_sequence_breakers:       cDryBreakers2,
+		dry_sequence_breakers_count: dryBreakersCount2,
+
+		// Dynamic temperature
+		dynatemp_range:    C.float(config.dynatempRange),
+		dynatemp_exponent: C.float(config.dynatempExponent),
+
+		// XTC sampling
+		xtc_probability: C.float(config.xtcProbability),
+		xtc_threshold:   C.float(config.xtcThreshold),
+
+		// Mirostat sampling
+		mirostat:     C.int(config.mirostat),
+		mirostat_tau: C.float(config.mirostatTau),
+		mirostat_eta: C.float(config.mirostatEta),
+
+		// Other parameters
+		n_prev:     C.int(config.nPrev),
+		n_probs:    C.int(config.nProbs),
+		ignore_eos: C.bool(config.ignoreEOS),
 	}
 
 	// Call simple speculative generation (handles tokenisation and prefix caching in C++)

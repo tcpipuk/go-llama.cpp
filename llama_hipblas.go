@@ -11,5 +11,6 @@
 // compiler (hipcc) is required for proper linking.
 //
 // CGO flags required:
-//   -O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas
+//
+//	-O3 --hip-link --rtlib=compiler-rt -unwindlib=libgcc -lrocblas -lhipblas
 package llama

@@ -26,9 +26,6 @@ typedef struct {
 typedef struct {
     const char* prompt;
     int max_tokens;
-    float temperature;
-    float top_p;
-    int top_k;
     int seed;
     const char** stop_words;
     int stop_words_count;
@@ -36,6 +33,47 @@ typedef struct {
     bool debug;
     uintptr_t callback_handle; // Handle to Go callback
     bool enable_prefix_caching; // Enable KV cache reuse for matching prefixes
+
+    // Basic sampling parameters
+    float temperature;
+    int top_k;
+    float top_p;
+    float min_p;
+    float typ_p;
+    float top_n_sigma;
+    int min_keep;
+
+    // Repetition penalties
+    int penalty_last_n;
+    float penalty_repeat;
+    float penalty_freq;
+    float penalty_present;
+
+    // DRY sampling
+    float dry_multiplier;
+    float dry_base;
+    int dry_allowed_length;
+    int dry_penalty_last_n;
+    const char** dry_sequence_breakers;
+    int dry_sequence_breakers_count;
+
+    // Dynamic temperature
+    float dynatemp_range;
+    float dynatemp_exponent;
+
+    // XTC sampling
+    float xtc_probability;
+    float xtc_threshold;
+
+    // Mirostat sampling
+    int mirostat;
+    float mirostat_tau;
+    float mirostat_eta;
+
+    // Other parameters
+    int n_prev;
+    int n_probs;
+    bool ignore_eos;
 } llama_wrapper_generate_params;
 
 // Callback for streaming tokens

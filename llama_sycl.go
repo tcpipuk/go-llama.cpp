@@ -14,5 +14,6 @@
 // NVIDIA, or AMD as needed.
 //
 // CGO flags required:
-//   -lsycl -L/opt/intel/oneapi/compiler/latest/linux/lib
+//
+//	-lsycl -L/opt/intel/oneapi/compiler/latest/linux/lib
 package llama

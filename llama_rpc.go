@@ -13,5 +13,6 @@
 // configuration.
 //
 // CGO flags required:
-//   -lpthread
+//
+//	-lpthread
 package llama

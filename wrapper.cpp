@@ -256,10 +256,50 @@ char* llama_wrapper_generate_with_tokens(void* ctx, const int* tokens, int n_tok
 
         // Create sampling parameters - use the struct directly instead of calling a function
         common_params_sampling sampling_params;
-        sampling_params.temp = params.temperature;
-        sampling_params.top_p = params.top_p;
-        sampling_params.top_k = params.top_k;
+        // Basic sampling
         sampling_params.seed = params.seed;
+        sampling_params.temp = params.temperature;
+        sampling_params.top_k = params.top_k;
+        sampling_params.top_p = params.top_p;
+        sampling_params.min_p = params.min_p;
+        sampling_params.typ_p = params.typ_p;
+        sampling_params.top_n_sigma = params.top_n_sigma;
+        sampling_params.min_keep = params.min_keep;
+
+        // Repetition penalties
+        sampling_params.penalty_last_n = params.penalty_last_n;
+        sampling_params.penalty_repeat = params.penalty_repeat;
+        sampling_params.penalty_freq = params.penalty_freq;
+        sampling_params.penalty_present = params.penalty_present;
+
+        // DRY sampling
+        sampling_params.dry_multiplier = params.dry_multiplier;
+        sampling_params.dry_base = params.dry_base;
+        sampling_params.dry_allowed_length = params.dry_allowed_length;
+        sampling_params.dry_penalty_last_n = params.dry_penalty_last_n;
+        // Convert dry_sequence_breakers from C array to std::vector
+        sampling_params.dry_sequence_breakers.clear();
+        for (int i = 0; i < params.dry_sequence_breakers_count; i++) {
+            sampling_params.dry_sequence_breakers.push_back(std::string(params.dry_sequence_breakers[i]));
+        }
+
+        // Dynamic temperature
+        sampling_params.dynatemp_range = params.dynatemp_range;
+        sampling_params.dynatemp_exponent = params.dynatemp_exponent;
+
+        // XTC sampling
+        sampling_params.xtc_probability = params.xtc_probability;
+        sampling_params.xtc_threshold = params.xtc_threshold;
+
+        // Mirostat sampling
+        sampling_params.mirostat = params.mirostat;
+        sampling_params.mirostat_tau = params.mirostat_tau;
+        sampling_params.mirostat_eta = params.mirostat_eta;
+
+        // Other parameters
+        sampling_params.n_prev = params.n_prev;
+        sampling_params.n_probs = params.n_probs;
+        sampling_params.ignore_eos = params.ignore_eos;
 
         // Initialise sampler
         common_sampler* sampler = common_sampler_init(wrapper->model, sampling_params);
@@ -545,10 +585,50 @@ char* llama_wrapper_generate_draft_with_tokens(void* ctx_target, void* ctx_draft
 
         // Create sampling parameters
         common_params_sampling sampling_params;
-        sampling_params.temp = params.temperature;
-        sampling_params.top_p = params.top_p;
-        sampling_params.top_k = params.top_k;
+        // Basic sampling
         sampling_params.seed = params.seed;
+        sampling_params.temp = params.temperature;
+        sampling_params.top_k = params.top_k;
+        sampling_params.top_p = params.top_p;
+        sampling_params.min_p = params.min_p;
+        sampling_params.typ_p = params.typ_p;
+        sampling_params.top_n_sigma = params.top_n_sigma;
+        sampling_params.min_keep = params.min_keep;
+
+        // Repetition penalties
+        sampling_params.penalty_last_n = params.penalty_last_n;
+        sampling_params.penalty_repeat = params.penalty_repeat;
+        sampling_params.penalty_freq = params.penalty_freq;
+        sampling_params.penalty_present = params.penalty_present;
+
+        // DRY sampling
+        sampling_params.dry_multiplier = params.dry_multiplier;
+        sampling_params.dry_base = params.dry_base;
+        sampling_params.dry_allowed_length = params.dry_allowed_length;
+        sampling_params.dry_penalty_last_n = params.dry_penalty_last_n;
+        // Convert dry_sequence_breakers from C array to std::vector
+        sampling_params.dry_sequence_breakers.clear();
+        for (int i = 0; i < params.dry_sequence_breakers_count; i++) {
+            sampling_params.dry_sequence_breakers.push_back(std::string(params.dry_sequence_breakers[i]));
+        }
+
+        // Dynamic temperature
+        sampling_params.dynatemp_range = params.dynatemp_range;
+        sampling_params.dynatemp_exponent = params.dynatemp_exponent;
+
+        // XTC sampling
+        sampling_params.xtc_probability = params.xtc_probability;
+        sampling_params.xtc_threshold = params.xtc_threshold;
+
+        // Mirostat sampling
+        sampling_params.mirostat = params.mirostat;
+        sampling_params.mirostat_tau = params.mirostat_tau;
+        sampling_params.mirostat_eta = params.mirostat_eta;
+
+        // Other parameters
+        sampling_params.n_prev = params.n_prev;
+        sampling_params.n_probs = params.n_probs;
+        sampling_params.ignore_eos = params.ignore_eos;
 
         // Initialise sampler
         common_sampler* sampler = common_sampler_init(wrapper_tgt->model, sampling_params);

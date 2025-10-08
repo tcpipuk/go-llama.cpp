@@ -12,5 +12,6 @@
 // features including cooperative matrices and tensor cores.
 //
 // CGO flags required:
-//   -lvulkan -L/usr/lib/x86_64-linux-gnu
+//
+//	-lvulkan -L/usr/lib/x86_64-linux-gnu
 package llama

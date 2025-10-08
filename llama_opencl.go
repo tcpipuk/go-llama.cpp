@@ -12,6 +12,7 @@
 // FlashAttention and optimisations for Qualcomm Adreno GPUs.
 //
 // CGO flags required:
-//   -lOpenCL
-//   On macOS: -framework OpenCL
+//
+//	-lOpenCL
+//	On macOS: -framework OpenCL
 package llama

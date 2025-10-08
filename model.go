@@ -82,20 +82,58 @@ type modelConfig struct {
 
 // generateConfig holds configuration for text generation
 type generateConfig struct {
+	// Basic generation
 	maxTokens     int
 	temperature   float32
-	topP          float32
-	topK          int
 	seed          int
 	stopWords     []string
 	draftTokens   int
 	debug         bool
 	prefixCaching bool // Per-generation prefix caching control
+
+	// Basic sampling parameters
+	topK      int
+	topP      float32
+	minP      float32
+	typP      float32
+	topNSigma float32
+	minKeep   int
+
+	// Repetition penalties
+	penaltyLastN   int
+	penaltyRepeat  float32
+	penaltyFreq    float32
+	penaltyPresent float32
+
+	// DRY (Don't Repeat Yourself) sampling
+	dryMultiplier       float32
+	dryBase             float32
+	dryAllowedLength    int
+	dryPenaltyLastN     int
+	drySequenceBreakers []string
+
+	// Dynamic temperature
+	dynatempRange    float32
+	dynatempExponent float32
+
+	// XTC (eXclude Top Choices) sampling
+	xtcProbability float32
+	xtcThreshold   float32
+
+	// Mirostat sampling
+	mirostat    int
+	mirostatTau float32
+	mirostatEta float32
+
+	// Other parameters
+	nPrev     int
+	nProbs    int
+	ignoreEOS bool
 }
 
 // Default configurations
 var defaultModelConfig = modelConfig{
-	contextSize:   0,    // 0 = use model's native maximum (queried after load)
+	contextSize:   0, // 0 = use model's native maximum (queried after load)
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
@@ -111,14 +149,52 @@ var defaultModelConfig = modelConfig{
 }
 
 var defaultGenerateConfig = generateConfig{
+	// Basic generation
 	maxTokens:     128,
 	temperature:   0.8,
-	topP:          0.95,
-	topK:          40,
 	seed:          -1,
 	draftTokens:   16,
 	debug:         false,
 	prefixCaching: true, // Inherit from model default
+
+	// Basic sampling parameters
+	topK:      40,
+	topP:      0.95,
+	minP:      0.05,
+	typP:      1.0,  // 1.0 = disabled
+	topNSigma: -1.0, // -1.0 = disabled
+	minKeep:   0,
+
+	// Repetition penalties
+	penaltyLastN:   64,
+	penaltyRepeat:  1.0, // 1.0 = disabled
+	penaltyFreq:    0.0, // 0.0 = disabled
+	penaltyPresent: 0.0, // 0.0 = disabled
+
+	// DRY sampling
+	dryMultiplier:       0.0, // 0.0 = disabled
+	dryBase:             1.75,
+	dryAllowedLength:    2,
+	dryPenaltyLastN:     -1, // -1 = context size
+	drySequenceBreakers: []string{"\n", ":", "\"", "*"},
+
+	// Dynamic temperature
+	dynatempRange:    0.0, // 0.0 = disabled
+	dynatempExponent: 1.0,
+
+	// XTC sampling
+	xtcProbability: 0.0, // 0.0 = disabled
+	xtcThreshold:   0.1,
+
+	// Mirostat sampling
+	mirostat:    0, // 0 = disabled
+	mirostatTau: 5.0,
+	mirostatEta: 0.1,
+
+	// Other parameters
+	nPrev:     64,
+	nProbs:    0, // 0 = disabled
+	ignoreEOS: false,
 }
 
 // ModelOption configures model loading behaviour.
@@ -207,17 +283,17 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 	}
 
 	params := C.llama_wrapper_model_params{
-		n_ctx:          C.int(config.contextSize),
-		n_batch:        C.int(config.batchSize),
-		n_gpu_layers:   C.int(config.gpuLayers),
-		n_threads:      C.int(config.threads),
+		n_ctx:           C.int(config.contextSize),
+		n_batch:         C.int(config.batchSize),
+		n_gpu_layers:    C.int(config.gpuLayers),
+		n_threads:       C.int(config.threads),
 		n_threads_batch: C.int(config.threadsBatch),
-		f16_memory:     C.bool(config.f16Memory),
-		mlock:          C.bool(config.mlock),
-		mmap:           C.bool(config.mmap),
-		embeddings:     C.bool(config.embeddings),
-		main_gpu:       cMainGPU,
-		tensor_split:   cTensorSplit,
+		f16_memory:      C.bool(config.f16Memory),
+		mlock:           C.bool(config.mlock),
+		mmap:            C.bool(config.mmap),
+		embeddings:      C.bool(config.embeddings),
+		main_gpu:        cMainGPU,
+		tensor_split:    cTensorSplit,
 	}
 
 	// Load model (weights only)

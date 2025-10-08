@@ -11,6 +11,7 @@
 // shader file that must be distributed alongside the application binary.
 //
 // CGO flags required:
-//   -framework Foundation -framework Metal -framework MetalKit
-//   -framework MetalPerformanceShaders
+//
+//	-framework Foundation -framework Metal -framework MetalKit
+//	-framework MetalPerformanceShaders
 package llama
