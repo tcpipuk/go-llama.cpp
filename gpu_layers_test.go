@@ -22,7 +22,7 @@ var _ = Describe("GPU Layer Configuration", Label("gpu-layers"), func() {
 	Context("default behaviour", func() {
 		It("should default to offloading all layers to GPU", Label("integration", "gpu"), func() {
 			// Default config should offload to GPU (-1 = all layers)
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -131,7 +131,7 @@ var _ = Describe("GPU Layer Configuration", Label("gpu-layers"), func() {
 			Expect(resultCPU).NotTo(BeEmpty())
 
 			// GPU timing (default -1, all layers)
-			modelGPU, err := llama.LoadModel(modelPath)
+			modelGPU, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer modelGPU.Close()
 

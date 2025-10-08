@@ -25,7 +25,7 @@ var _ = Describe("Model.Tokenize", func() {
 			Skip("TEST_MODEL not set - skipping integration test")
 		}
 		var err error
-		model, err = llama.LoadModel(modelPath)
+		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(model).NotTo(BeNil())
 	})
@@ -237,7 +237,7 @@ var _ = Describe("Tokenization Output Validation", func() {
 			Skip("TEST_MODEL not set - skipping integration test")
 		}
 		var err error
-		model, err = llama.LoadModel(modelPath)
+		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -342,7 +342,7 @@ var _ = Describe("Tokenization Edge Cases", func() {
 			Skip("TEST_MODEL not set - skipping integration test")
 		}
 		var err error
-		model, err = llama.LoadModel(modelPath)
+		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 		Expect(err).NotTo(HaveOccurred())
 	})
 

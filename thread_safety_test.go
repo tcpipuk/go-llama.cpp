@@ -32,7 +32,7 @@ var _ = Describe("Model Thread Safety", func() {
 
 	Context("concurrent Generate calls", func() {
 		It("should detect race conditions with concurrent calls", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -56,7 +56,7 @@ var _ = Describe("Model Thread Safety", func() {
 		})
 
 		It("should corrupt state when called concurrently", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -90,7 +90,7 @@ var _ = Describe("Model Thread Safety", func() {
 			// This test serves as documentation:
 			// Model instances are NOT thread-safe
 			// Use separate instances or synchronisation primitives
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -103,7 +103,7 @@ var _ = Describe("Model Thread Safety", func() {
 
 	Context("concurrent method calls", func() {
 		It("should show unsafe behaviour with concurrent Tokenize", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -152,7 +152,7 @@ var _ = Describe("Model Thread Safety", func() {
 		})
 
 		It("should show unsafe behaviour with mixed method calls", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -181,7 +181,7 @@ var _ = Describe("Model Thread Safety", func() {
 
 	Context("concurrent Close calls", func() {
 		It("should handle concurrent Close() calls", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			var wg sync.WaitGroup
@@ -200,7 +200,7 @@ var _ = Describe("Model Thread Safety", func() {
 		})
 
 		It("should not crash on concurrent close", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			var wg sync.WaitGroup
@@ -219,7 +219,7 @@ var _ = Describe("Model Thread Safety", func() {
 		})
 
 		It("should set pointer to nil atomically (or demonstrate issues)", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			// Close in one goroutine while checking in another
@@ -257,11 +257,11 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 	Context("with separate model instances", func() {
 		It("should allow concurrent calls on different model instances", Label("integration"), func() {
 			// Load separate model instances
-			model1, err := llama.LoadModel(modelPath)
+			model1, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model1.Close()
 
-			model2, err := llama.LoadModel(modelPath)
+			model2, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model2.Close()
 
@@ -294,7 +294,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 			models := make([]*llama.Model, 5)
 			for i := range models {
 				var err error
-				models[i], err = llama.LoadModel(modelPath)
+				models[i], err = llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				defer models[i].Close()
 			}
@@ -335,7 +335,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 					defer wg.Done()
 
 					// Each goroutine loads its own model
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					Expect(err).NotTo(HaveOccurred())
 					defer model.Close()
 
@@ -356,7 +356,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 
 	Context("with synchronisation primitives", func() {
 		It("should work safely with sync.Mutex protection", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -390,7 +390,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 		})
 
 		It("should demonstrate mutex-protected concurrent access", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -428,7 +428,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 		})
 
 		It("should show performance impact of locking", Label("integration", "slow"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -464,7 +464,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 
 			// Populate pool
 			for i := 0; i < poolSize; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				modelPool <- model
 			}
@@ -508,7 +508,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 			modelPool := make(chan *llama.Model, poolSize)
 
 			for i := 0; i < poolSize; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				modelPool <- model
 			}
@@ -551,7 +551,7 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 			modelPool := make(chan *llama.Model, poolSize)
 
 			for i := 0; i < poolSize; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				modelPool <- model
 			}
@@ -601,7 +601,7 @@ var _ = Describe("Callback Thread Safety", func() {
 
 	Context("callback execution", func() {
 		It("should execute callbacks synchronously in generation thread", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -624,7 +624,7 @@ var _ = Describe("Callback Thread Safety", func() {
 		})
 
 		It("should not spawn goroutines for callbacks", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -645,7 +645,7 @@ var _ = Describe("Callback Thread Safety", func() {
 		})
 
 		It("should allow callbacks to safely access goroutine-local state", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -668,7 +668,7 @@ var _ = Describe("Callback Thread Safety", func() {
 
 	Context("callback with shared state", func() {
 		It("should demonstrate safe callback patterns", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -694,7 +694,7 @@ var _ = Describe("Callback Thread Safety", func() {
 		})
 
 		It("should handle callback accessing shared state", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -718,7 +718,7 @@ var _ = Describe("Callback Thread Safety", func() {
 		})
 
 		It("should show unsafe callback patterns without locking", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -756,7 +756,7 @@ var _ = Describe("Global Error State Thread Safety", func() {
 			// g_last_error is a global static string in C++
 			// Concurrent errors may corrupt error messages
 
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -814,7 +814,7 @@ var _ = Describe("Global Error State Thread Safety", func() {
 					defer wg.Done()
 
 					// Each goroutine gets its own model
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					Expect(err).NotTo(HaveOccurred())
 					defer model.Close()
 
@@ -849,7 +849,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 				wg.Add(1)
 				go func(index int) {
 					defer wg.Done()
-					models[index], errors[index] = llama.LoadModel(modelPath)
+					models[index], errors[index] = llama.LoadModel(modelPath, llama.WithContext(2048))
 				}(i)
 			}
 
@@ -872,7 +872,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					Expect(err).NotTo(HaveOccurred())
 					defer model.Close()
 				}()
@@ -891,7 +891,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 				go func(index int) {
 					defer wg.Done()
 
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					if err == nil {
 						defer model.Close()
 						_, err = model.Generate("Test", llama.WithMaxTokens(5))
@@ -916,7 +916,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 			models := make([]*llama.Model, count)
 			for i := range models {
 				var err error
-				models[i], err = llama.LoadModel(modelPath)
+				models[i], err = llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 			}
 
@@ -940,7 +940,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 			const count = 3
 
 			for i := 0; i < count; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				// Intentionally not closing - finaliser will handle it
 				_ = model
@@ -956,7 +956,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 		})
 
 		It("should not double-free resources", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			// Close explicitly
@@ -984,7 +984,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 
 					// Load and close in cycle
 					for j := 0; j < 2; j++ {
-						model, err := llama.LoadModel(modelPath)
+						model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 						Expect(err).NotTo(HaveOccurred())
 						_, err = model.Generate("Test", llama.WithMaxTokens(5))
 						Expect(err).NotTo(HaveOccurred())
@@ -1007,7 +1007,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 					defer wg.Done()
 
 					for j := 0; j < iterationsPerWorker; j++ {
-						model, err := llama.LoadModel(modelPath)
+						model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 						Expect(err).NotTo(HaveOccurred())
 
 						_, err = model.Tokenize("Test tokenisation")
@@ -1031,7 +1031,7 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 				go func() {
 					defer wg.Done()
 
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					Expect(err).NotTo(HaveOccurred())
 					defer model.Close()
 
@@ -1058,7 +1058,7 @@ var _ = Describe("Race Detection", func() {
 
 	Context("with Go race detector", func() {
 		It("should detect races in concurrent Generate", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1080,7 +1080,7 @@ var _ = Describe("Race Detection", func() {
 		})
 
 		It("should detect races in concurrent Tokenize", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1124,7 +1124,7 @@ var _ = Describe("Race Detection", func() {
 		})
 
 		It("should detect races in concurrent Close", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			var wg sync.WaitGroup
@@ -1147,7 +1147,7 @@ var _ = Describe("Race Detection", func() {
 
 	Context("safe patterns", func() {
 		It("should pass race detector with mutex protection", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1174,11 +1174,11 @@ var _ = Describe("Race Detection", func() {
 		})
 
 		It("should pass race detector with separate instances", Label("integration"), func() {
-			model1, err := llama.LoadModel(modelPath)
+			model1, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model1.Close()
 
-			model2, err := llama.LoadModel(modelPath)
+			model2, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model2.Close()
 
@@ -1204,7 +1204,7 @@ var _ = Describe("Race Detection", func() {
 			modelPool := make(chan *llama.Model, poolSize)
 
 			for i := 0; i < poolSize; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				modelPool <- model
 			}
@@ -1247,7 +1247,7 @@ var _ = Describe("Documentation Examples", func() {
 	Context("unsafe pattern demonstration", func() {
 		It("should demonstrate concurrent access failure", Label("integration"), func() {
 			// ❌ UNSAFE PATTERN - DO NOT USE IN PRODUCTION
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1270,7 +1270,7 @@ var _ = Describe("Documentation Examples", func() {
 
 		It("should provide example of race condition", Label("integration"), func() {
 			// ❌ UNSAFE PATTERN
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1294,7 +1294,7 @@ var _ = Describe("Documentation Examples", func() {
 
 		It("should show corrupted generation output", Label("integration"), func() {
 			// ❌ UNSAFE PATTERN
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1322,7 +1322,7 @@ var _ = Describe("Documentation Examples", func() {
 
 			// Initialise pool
 			for i := 0; i < poolSize; i++ {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				modelPool <- model
 			}
@@ -1363,7 +1363,7 @@ var _ = Describe("Documentation Examples", func() {
 
 		It("should provide example of mutex-protected access", Label("integration"), func() {
 			// ✅ SAFE PATTERN: Mutex protection
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -1404,7 +1404,7 @@ var _ = Describe("Documentation Examples", func() {
 					defer wg.Done()
 
 					// Each goroutine gets its own model instance
-					model, err := llama.LoadModel(modelPath)
+					model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 					Expect(err).NotTo(HaveOccurred())
 					defer model.Close()
 

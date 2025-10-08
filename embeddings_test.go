@@ -193,7 +193,7 @@ var _ = Describe("Model.GetEmbeddings", func() {
 
 			var err error
 			// Load model WITHOUT WithEmbeddings()
-			model, err = llama.LoadModel(modelPath)
+			model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -309,7 +309,7 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		It("should handle null embeddings with 'Failed to get embeddings from context'", Label("integration"), func() {
 			// This is tested in the "when embeddings not enabled" context
 			// Here we document the expected error for completeness
-			model, err := llama.LoadModel(modelPath) // No WithEmbeddings()
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048)) // No WithEmbeddings()
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -570,7 +570,7 @@ var _ = Describe("WithEmbeddings Option", func() {
 
 			var err error
 			// Load without WithEmbeddings()
-			model, err = llama.LoadModel(modelPath)
+			model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 		})
 

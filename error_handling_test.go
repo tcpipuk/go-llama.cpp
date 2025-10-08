@@ -105,7 +105,7 @@ var _ = Describe("Generation Errors", func() {
 
 	Context("context validation", func() {
 		It("should return 'Context cannot be null' for null context", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -135,7 +135,7 @@ var _ = Describe("Generation Errors", func() {
 
 	Context("prompt validation", func() {
 		It("should return 'Failed to tokenize prompt' for tokenisation failures", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -185,7 +185,7 @@ var _ = Describe("Generation Errors", func() {
 
 		BeforeEach(func() {
 			var err error
-			model, err = llama.LoadModel(modelPath)
+			model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -222,7 +222,7 @@ var _ = Describe("Generation Errors", func() {
 		})
 
 		It("should handle sampler failures gracefully", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -254,7 +254,7 @@ var _ = Describe("Generation Errors", func() {
 		})
 
 		It("should catch and wrap C++ exceptions", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -278,11 +278,11 @@ var _ = Describe("Speculative Generation Errors", func() {
 
 	Context("model validation", func() {
 		It("should return 'Target and draft contexts cannot be null' for null contexts", Label("integration"), func() {
-			targetModel, err := llama.LoadModel(modelPath)
+			targetModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer targetModel.Close()
 
-			draftModel, err := llama.LoadModel(modelPath)
+			draftModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer draftModel.Close()
 
@@ -295,10 +295,10 @@ var _ = Describe("Speculative Generation Errors", func() {
 		})
 
 		It("should validate both target and draft models", Label("integration"), func() {
-			targetModel, err := llama.LoadModel(modelPath)
+			targetModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
-			draftModel, err := llama.LoadModel(modelPath)
+			draftModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer draftModel.Close()
 
@@ -318,11 +318,11 @@ var _ = Describe("Speculative Generation Errors", func() {
 		})
 
 		It("should return 'Failed to tokenize prompt' for tokenisation failures", Label("integration"), func() {
-			targetModel, err := llama.LoadModel(modelPath)
+			targetModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer targetModel.Close()
 
-			draftModel, err := llama.LoadModel(modelPath)
+			draftModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer draftModel.Close()
 
@@ -346,11 +346,11 @@ var _ = Describe("Speculative Generation Errors", func() {
 		})
 
 		It("should handle decode failures during generation", Label("integration"), func() {
-			targetModel, err := llama.LoadModel(modelPath)
+			targetModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer targetModel.Close()
 
-			draftModel, err := llama.LoadModel(modelPath)
+			draftModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer draftModel.Close()
 
@@ -386,7 +386,7 @@ var _ = Describe("Tokenization Errors", func() {
 
 	Context("parameter validation", func() {
 		It("should return 'Invalid parameters for tokenization' for null ctx", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			// Close model to make context null
@@ -398,7 +398,7 @@ var _ = Describe("Tokenization Errors", func() {
 		})
 
 		It("should return 'Invalid parameters for tokenization' for null text", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -428,7 +428,7 @@ var _ = Describe("Tokenization Errors", func() {
 		})
 
 		It("should handle tokenisation exceptions gracefully", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -508,7 +508,7 @@ var _ = Describe("Embedding Errors", func() {
 
 		It("should return 'Failed to get embeddings from context' when embeddings null", Label("integration"), func() {
 			// Load model WITHOUT embeddings mode
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -556,7 +556,7 @@ var _ = Describe("Debug Messages", func() {
 		})
 
 		It("should output 'INFO: End of generation token encountered' on EOS", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -571,7 +571,7 @@ var _ = Describe("Debug Messages", func() {
 		})
 
 		It("should output 'INFO: Generation stopped by callback' when callback returns false", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -590,7 +590,7 @@ var _ = Describe("Debug Messages", func() {
 		})
 
 		It("should output 'INFO: Stop word found, ending generation' when stop word found", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -652,7 +652,7 @@ var _ = Describe("Error Message Quality", func() {
 				Skip("TEST_MODEL not set - skipping integration test")
 			}
 
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -670,7 +670,7 @@ var _ = Describe("Error Message Quality", func() {
 				Skip("TEST_MODEL not set - skipping integration test")
 			}
 
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
@@ -699,7 +699,7 @@ var _ = Describe("Error Message Quality", func() {
 				Skip("TEST_MODEL not set - skipping integration test")
 			}
 
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 
 			// Close model and test various operations

@@ -26,21 +26,21 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should load model successfully", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
 		})
 
 		It("should return non-nil model pointer", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
 		})
 
 		It("should initialise llama backend", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -52,7 +52,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should set finaliser for automatic cleanup", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -105,7 +105,7 @@ var _ = Describe("LoadModel", func() {
 			}
 
 			// Test with path that might have spaces or special chars
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 		})
@@ -117,7 +117,7 @@ var _ = Describe("LoadModel", func() {
 			}
 
 			// Test that valid paths work regardless of format
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -260,7 +260,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should use context size 2048 when not specified", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -272,7 +272,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should use batch size 512 when not specified", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -284,7 +284,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should use CPU-only (0 GPU layers) when not specified", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -296,7 +296,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should use runtime.NumCPU() threads when not specified", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -311,7 +311,7 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should enable mmap by default", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -371,7 +371,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should free resources successfully", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -380,7 +380,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should set pointer to nil", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -393,7 +393,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should remove finaliser", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -405,7 +405,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should always return nil error", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -425,7 +425,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should be safe to call Close() twice", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -437,7 +437,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should not panic on double-close", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -448,7 +448,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should remain nil after second close", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -473,7 +473,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should be idempotent", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -488,7 +488,7 @@ var _ = Describe("Model.Close", func() {
 		})
 
 		It("should not error on nil pointer", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -515,7 +515,7 @@ var _ = Describe("Model Finaliser", func() {
 		It("should call Close() via finaliser", Label("integration", "slow"), func() {
 			// Load model and let it go out of scope
 			func() {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(model).NotTo(BeNil())
 				// Model goes out of scope without explicit Close()
@@ -527,20 +527,20 @@ var _ = Describe("Model Finaliser", func() {
 
 			// If finaliser worked, no crash or leak
 			// Load another model to verify no corruption
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 		})
 
 		It("should free resources after GC", Label("integration", "slow"), func() {
 			// Track that resources are freed by finaliser
-			initialModel, err := llama.LoadModel(modelPath)
+			initialModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			initialModel.Close()
 
 			// Load model without closing
 			func() {
-				model, err := llama.LoadModel(modelPath)
+				model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(model).NotTo(BeNil())
 				// Goes out of scope
@@ -551,13 +551,13 @@ var _ = Describe("Model Finaliser", func() {
 			runtime.GC()
 
 			// Should be able to load again without issues
-			newModel, err := llama.LoadModel(modelPath)
+			newModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer newModel.Close()
 		})
 
 		It("should handle finaliser running after explicit Close()", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -570,7 +570,7 @@ var _ = Describe("Model Finaliser", func() {
 
 			// No double-free, no crash
 			// Verify by loading new model
-			newModel, err := llama.LoadModel(modelPath)
+			newModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer newModel.Close()
 		})
@@ -587,7 +587,7 @@ var _ = Describe("Model Finaliser", func() {
 		})
 
 		It("should remove finaliser on Close()", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -599,13 +599,13 @@ var _ = Describe("Model Finaliser", func() {
 			runtime.GC()
 
 			// Verify no issues
-			newModel, err := llama.LoadModel(modelPath)
+			newModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer newModel.Close()
 		})
 
 		It("should not double-free if GC runs later", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath)
+			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 
@@ -617,7 +617,7 @@ var _ = Describe("Model Finaliser", func() {
 			runtime.GC()
 
 			// Verify system still stable
-			newModel, err := llama.LoadModel(modelPath)
+			newModel, err := llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			defer newModel.Close()
 

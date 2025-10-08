@@ -458,7 +458,7 @@ var _ = Describe("Model.Generate", func() {
 				Skip("TEST_MODEL not set - skipping integration test")
 			}
 			var err error
-			model, err = llama.LoadModel(modelPath)
+			model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
 			Expect(err).NotTo(HaveOccurred())
 			// Close model before test
 			model.Close()
