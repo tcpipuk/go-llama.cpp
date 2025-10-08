@@ -27,11 +27,23 @@ jobs:
       CMAKE_CUDA_COMPILER_LAUNCHER: sccache
       # Enable GitHub Actions cache backend
       SCCACHE_GHA_ENABLED: "true"
+      # Test model for integration tests
+      TEST_MODEL: Qwen3-0.6B-Q8_0.gguf
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Detect versions
+        id: versions
+        uses: https://git.tomfos.tr/actions/detect-versions@v1
+
+      - name: Cache test model
+        uses: https://github.com/actions/cache@v4
+        with:
+          path: Qwen3-0.6B-Q8_0.gguf
+          key: test-model-qwen3-0.6b-q8
 
       - name: Cache dependencies
         uses: https://github.com/actions/cache@v4
@@ -39,10 +51,12 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-            Qwen3-0.6B-Q8_0.gguf
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          # Cache key includes OS/arch, llama.cpp commit, wrapper changes, and Go dependencies
+          # Invalidates when: platform changes, submodule updates, wrapper modified, or dependencies change
+          key: ${{ steps.versions.outputs.slug }}-${{ steps.versions.outputs.arch }}-go-${{ hashFiles('llama.cpp/.git/HEAD', 'wrapper.cpp', 'wrapper.h', '**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ steps.versions.outputs.slug }}-${{ steps.versions.outputs.arch }}-go-${{ hashFiles('llama.cpp/.git/HEAD', 'wrapper.cpp', 'wrapper.h') }}
+            ${{ steps.versions.outputs.slug }}-${{ steps.versions.outputs.arch }}-go-
 
       - name: Setup sccache
         uses: https://git.tomfos.tr/tom/sccache-action@v1
@@ -72,8 +86,7 @@ jobs:
 
       - name: Run tests
         run: |
-          TEST_MODEL=Qwen3-0.6B-Q8_0.gguf \
-            go run github.com/onsi/ginkgo/v2/ginkgo --vv ./...
+          go run github.com/onsi/ginkgo/v2/ginkgo -v ./...
 
       - name: Run example
         run: |

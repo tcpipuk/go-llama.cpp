@@ -227,6 +227,11 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		config.contextSize = nativeContext
 	}
 
+	// Clamp batch size to context size (llama.cpp requires batch <= context)
+	if config.batchSize > config.contextSize {
+		config.batchSize = config.contextSize
+	}
+
 	// Create context pool
 	pool, err := newContextPool(modelPtr, config)
 	if err != nil {
