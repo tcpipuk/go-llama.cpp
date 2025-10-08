@@ -253,27 +253,36 @@ char* llama_wrapper_generate_with_tokens(void* ctx, const int* tokens, int n_tok
         // Process prompt tokens from prefix_len onwards using explicit positions
         if (prefix_len < n_tokens) {
             int tokens_to_process = n_tokens - prefix_len;
-            llama_batch batch = llama_batch_init(std::max(tokens_to_process, 512), 0, 1);
-            common_batch_clear(batch);
+            int n_batch = llama_n_batch(wrapper->ctx);
 
-            // Add tokens with explicit positions starting from prefix_len
-            for (int i = 0; i < tokens_to_process; i++) {
-                int token_idx = prefix_len + i;
-                bool needs_logits = (i == tokens_to_process - 1);  // Only last token needs logits
-                common_batch_add(batch, prompt_tokens[token_idx], prefix_len + i, { 0 }, needs_logits);
-            }
+            // Process tokens in chunks that respect n_batch limit
+            for (int chunk_start = 0; chunk_start < tokens_to_process; chunk_start += n_batch) {
+                int chunk_size = std::min(n_batch, tokens_to_process - chunk_start);
+                llama_batch batch = llama_batch_init(chunk_size, 0, 1);
+                common_batch_clear(batch);
 
-            if (llama_decode(wrapper->ctx, batch) != 0) {
-                if (params.debug) {
-                    fprintf(stderr, "WARNING: prompt decode failed\n");
+                // Add tokens for this chunk with explicit positions
+                for (int i = 0; i < chunk_size; i++) {
+                    int token_idx = prefix_len + chunk_start + i;
+                    int position = prefix_len + chunk_start + i;
+                    // Only the very last token of the entire prompt needs logits
+                    bool needs_logits = (chunk_start + i == tokens_to_process - 1);
+                    common_batch_add(batch, prompt_tokens[token_idx], position, { 0 }, needs_logits);
                 }
+
+                if (llama_decode(wrapper->ctx, batch) != 0) {
+                    if (params.debug) {
+                        fprintf(stderr, "WARNING: prompt decode failed for chunk starting at %d\n", chunk_start);
+                    }
+                    llama_batch_free(batch);
+                    common_sampler_free(sampler);
+                    g_last_error = "Failed to decode prompt";
+                    return nullptr;
+                }
+
                 llama_batch_free(batch);
-                common_sampler_free(sampler);
-                g_last_error = "Failed to decode prompt";
-                return nullptr;
             }
 
-            llama_batch_free(batch);
             n_past = n_tokens;  // Position now at end of prompt
         } else if (prefix_len == n_tokens && n_tokens > 0) {
             // Full cache hit - refresh last token's logits to ensure determinism
@@ -523,24 +532,32 @@ char* llama_wrapper_generate_draft_with_tokens(void* ctx_target, void* ctx_draft
         if (prompt_tokens.size() > 1 && target_prefix_len < (int)prompt_tokens.size() - 1) {
             // Process tokens from target_prefix_len to size - 1
             int tokens_to_process = prompt_tokens.size() - 1 - target_prefix_len;
-            llama_batch batch = llama_batch_init(std::max(tokens_to_process, 512), 0, 1);
-            common_batch_clear(batch);
+            int n_batch = llama_n_batch(wrapper_tgt->ctx);
 
-            // Add uncached tokens with correct positions
-            for (int i = 0; i < tokens_to_process; i++) {
-                int token_idx = target_prefix_len + i;
-                bool needs_logits = (i == tokens_to_process - 1); // Only last token needs logits
-                common_batch_add(batch, prompt_tokens[token_idx], token_idx, { 0 }, needs_logits);
-            }
+            // Process tokens in chunks that respect n_batch limit
+            for (int chunk_start = 0; chunk_start < tokens_to_process; chunk_start += n_batch) {
+                int chunk_size = std::min(n_batch, tokens_to_process - chunk_start);
+                llama_batch batch = llama_batch_init(chunk_size, 0, 1);
+                common_batch_clear(batch);
 
-            if (llama_decode(wrapper_tgt->ctx, batch) != 0) {
+                // Add tokens for this chunk with explicit positions
+                for (int i = 0; i < chunk_size; i++) {
+                    int token_idx = target_prefix_len + chunk_start + i;
+                    // Only the very last token of the entire prompt needs logits
+                    bool needs_logits = (chunk_start + i == tokens_to_process - 1);
+                    common_batch_add(batch, prompt_tokens[token_idx], token_idx, { 0 }, needs_logits);
+                }
+
+                if (llama_decode(wrapper_tgt->ctx, batch) != 0) {
+                    llama_batch_free(batch);
+                    common_sampler_free(sampler);
+                    common_speculative_free(spec);
+                    g_last_error = "Failed to decode prompt";
+                    return nullptr;
+                }
+
                 llama_batch_free(batch);
-                common_sampler_free(sampler);
-                common_speculative_free(spec);
-                g_last_error = "Failed to decode prompt";
-                return nullptr;
             }
-            llama_batch_free(batch);
         } else if (target_prefix_len == (int)prompt_tokens.size() && prompt_tokens.size() > 1) {
             // Full cache hit - refresh the second-to-last token to ensure determinism
             // This matches the pattern where we decode all but the last token

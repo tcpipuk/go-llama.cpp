@@ -227,7 +227,8 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		config.contextSize = nativeContext
 	}
 
-	// Clamp batch size to context size (llama.cpp requires batch <= context)
+	// Optimisation: clamp batch size to context size
+	// You can never process more tokens per batch than fit in total context
 	if config.batchSize > config.contextSize {
 		config.batchSize = config.contextSize
 	}

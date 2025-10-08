@@ -417,8 +417,8 @@ var _ = Describe("Model.Generate", func() {
 		})
 
 		It("should return error when prompt fills entire context", Label("integration"), func() {
-			// Generate very long prompt (128+ tokens for context=128)
-			longPrompt := strings.Repeat("word ", 150)
+			// Generate very long prompt (300+ tokens for context=128)
+			longPrompt := strings.Repeat("word ", 300)
 			_, err := model.Generate(longPrompt,
 				llama.WithMaxTokens(10),
 			)
@@ -426,8 +426,8 @@ var _ = Describe("Model.Generate", func() {
 		})
 
 		It("should error with \"Prompt too long for context size\"", Label("integration"), func() {
-			// Generate very long prompt
-			longPrompt := strings.Repeat("word ", 150)
+			// Generate very long prompt (300+ tokens for context=128)
+			longPrompt := strings.Repeat("word ", 300)
 			_, err := model.Generate(longPrompt,
 				llama.WithMaxTokens(10),
 			)
