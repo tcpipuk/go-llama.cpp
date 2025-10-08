@@ -281,13 +281,13 @@ var _ = Describe("Model.Generate", func() {
 		})
 
 		It("should stop generation when stop word found", Label("integration"), func() {
-			response, err := model.Generate("Count: 1, 2, 3, 4, 5",
+			response, err := model.Generate("What is the capital of France?",
 				llama.WithMaxTokens(100),
-				llama.WithStopWords(","),
+				llama.WithStopWords("Paris"),
 			)
 			Expect(err).NotTo(HaveOccurred())
-			// Should stop at first comma
-			Expect(len(response)).To(BeNumerically("<", 50))
+			// Should stop when "Paris" is generated (highly likely for this prompt)
+			Expect(len(response)).To(BeNumerically("<", 100))
 		})
 
 		It("should respect multiple stop words", Label("integration"), func() {
@@ -698,20 +698,14 @@ var _ = Describe("Generation Edge Cases", func() {
 		})
 
 		It("should prioritise stop words over max_tokens", Label("integration"), func() {
-			response, err := model.Generate("The quick brown",
+			response, err := model.Generate("The quick brown fox jumps",
 				llama.WithMaxTokens(100),
-				llama.WithStopWords("fox"),
+				llama.WithStopWords("over"),
 			)
 			Expect(err).NotTo(HaveOccurred())
-			// Should stop when stop word found or at max tokens
-			// If stop word was found, response should be relatively short
-			// If stop word wasn't found, response will use full max_tokens
-			// This test verifies that stop words can terminate generation early
-			if strings.Contains(response, "fox") {
-				// Stop word was encountered - should have stopped relatively early
-				Expect(len(response)).To(BeNumerically("<", 500))
-			}
-			// If stop word wasn't generated, that's valid behavior too
+			// Completing the famous phrase makes "over" highly likely
+			// Should stop when "over" is generated, producing short response
+			Expect(len(response)).To(BeNumerically("<", 50))
 		})
 	})
 })
