@@ -77,8 +77,8 @@ Build and test the updated bindings:
 # Verify no existing build artifacts
 ls -la libbinding.a 2>/dev/null  # Should return nothing
 
-# Build with Docker for consistent environment
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/act-runner:ubuntu-rolling \
+# Build with Docker for consistent environment (expect 15-20 minutes)
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
 
 # Verify build created all artifacts
@@ -104,9 +104,12 @@ docker run --rm -v $(pwd):/workspace -w /workspace golang:latest \
            go run ./examples/embedding -m Qwen3-Embedding-0.6B-Q8_0.gguf -t 'Hello world'"
 
 # Run test suite with test model (tests inference, speculative sampling, tokenisation)
-docker run --rm -v $(pwd):/workspace -w /workspace golang:latest \
+# Use build-cuda container which includes correct CUDA drivers and Go version
+docker run --rm --gpus all -v $(pwd):/workspace -w /workspace \
+  -e TEST_MODEL=Qwen3-0.6B-Q8_0.gguf -e LLAMA_LOG=error \
+  git.tomfos.tr/tom/llama-go:build-cuda \
   bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
-           TEST_MODEL=Qwen3-0.6B-Q8_0.gguf go run github.com/onsi/ginkgo/v2/ginkgo -v ./..."
+           go run github.com/onsi/ginkgo/v2/ginkgo -v ./..."
 ```
 
 **Verification**: All commands must complete successfully with expected output before proceeding.
