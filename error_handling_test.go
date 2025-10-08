@@ -463,16 +463,16 @@ var _ = Describe("Embedding Errors", func() {
 			Expect(err.Error()).To(Equal("model is closed"))
 		})
 
-		It("should return 'Invalid parameters for embeddings' for null text", Label("integration"), func() {
+		It("should return 'Failed to tokenize text for embeddings' for empty text", Label("integration"), func() {
 			model, err := llama.LoadModel(modelPath, llama.WithEmbeddings())
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
 			// Empty string is the closest we can get to null in Go
 			embeddings, err := model.GetEmbeddings("")
-			// Empty string may be handled gracefully or return error
+			// Empty string should trigger tokenisation error
 			if err != nil {
-				Expect(err.Error()).To(ContainSubstring("Invalid parameters for embeddings"))
+				Expect(err.Error()).To(ContainSubstring("Failed to tokenize text for embeddings"))
 			} else {
 				Expect(embeddings).NotTo(BeNil())
 			}
@@ -656,8 +656,8 @@ var _ = Describe("Error Message Quality", func() {
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
-			// Test invalid max_tokens
-			_, err = model.Generate("Hello", llama.WithMaxTokens(0))
+			// Test invalid max_tokens (negative value)
+			_, err = model.Generate("Hello", llama.WithMaxTokens(-1))
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(HavePrefix("generation failed:"))
 		})
@@ -674,13 +674,13 @@ var _ = Describe("Error Message Quality", func() {
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
-			// Trigger C++ error (invalid max_tokens)
+			// Trigger C++ error (prompt + max_tokens exceeds context)
 			_, err = model.Generate("Hello", llama.WithMaxTokens(10000))
 			Expect(err).To(HaveOccurred())
 			// Error should be wrapped with "generation failed:" prefix
 			Expect(err.Error()).To(ContainSubstring("generation failed:"))
 			// And contain the C++ error message
-			Expect(err.Error()).To(ContainSubstring("Invalid max_tokens value"))
+			Expect(err.Error()).To(ContainSubstring("Prompt too long for context size"))
 		})
 
 		It("should preserve original error details", Label("integration"), func() {

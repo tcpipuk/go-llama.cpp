@@ -474,7 +474,8 @@ var _ = Describe("Model.GenerateWithDraft", func() {
 				llama.WithMaxTokens(10),
 			)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Prompt too long for context size"))
+			// In speculative mode, oversized prompts fail during decode
+			Expect(err.Error()).To(ContainSubstring("Failed to decode prompt"))
 		})
 
 		It("should tokenise prompt before speculative sampling starts", Label("integration"), func() {

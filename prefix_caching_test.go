@@ -30,6 +30,7 @@ var _ = Describe("Prefix Caching", Label("prefix-caching"), func() {
 			// First generation (cold cache)
 			result1, err := model.Generate(prompt,
 				llama.WithSeed(int(seed)),
+				llama.WithTemperature(0.0), // Use temperature 0 for maximum determinism
 				llama.WithMaxTokens(10),
 				llama.WithPrefixCaching(true),
 			)
@@ -39,6 +40,7 @@ var _ = Describe("Prefix Caching", Label("prefix-caching"), func() {
 			// Second generation (warm cache) - should match first
 			result2, err := model.Generate(prompt,
 				llama.WithSeed(int(seed)),
+				llama.WithTemperature(0.0),
 				llama.WithMaxTokens(10),
 				llama.WithPrefixCaching(true),
 			)
@@ -48,6 +50,7 @@ var _ = Describe("Prefix Caching", Label("prefix-caching"), func() {
 			// Third generation - should also match
 			result3, err := model.Generate(prompt,
 				llama.WithSeed(int(seed)),
+				llama.WithTemperature(0.0),
 				llama.WithMaxTokens(10),
 				llama.WithPrefixCaching(true),
 			)
