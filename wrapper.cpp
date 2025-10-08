@@ -822,11 +822,28 @@ int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int
             return -1;
         }
 
-        // Evaluate tokens
-        llama_batch batch = llama_batch_get_one(tokens.data(), tokens.size());
-        if (llama_decode(wrapper->ctx, batch) != 0) {
-            g_last_error = "Failed to decode tokens for embeddings";
-            return -1;
+        // Evaluate tokens in chunks that respect n_batch limit
+        int n_batch = llama_n_batch(wrapper->ctx);
+        int n_tokens = tokens.size();
+
+        for (int i = 0; i < n_tokens; i += n_batch) {
+            int chunk_size = std::min(n_batch, n_tokens - i);
+            llama_batch batch = llama_batch_init(chunk_size, 0, 1);
+            common_batch_clear(batch);
+
+            // Add tokens for this chunk
+            for (int j = 0; j < chunk_size; j++) {
+                // All tokens need logits for embeddings
+                common_batch_add(batch, tokens[i + j], i + j, { 0 }, true);
+            }
+
+            if (llama_decode(wrapper->ctx, batch) != 0) {
+                llama_batch_free(batch);
+                g_last_error = "Failed to decode tokens for embeddings";
+                return -1;
+            }
+
+            llama_batch_free(batch);
         }
 
         // Get embeddings using the correct function call
