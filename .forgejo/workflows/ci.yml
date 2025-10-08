@@ -29,6 +29,8 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
       # Test model for integration tests
       TEST_MODEL: Qwen3-0.6B-Q8_0.gguf
+      # Suppress verbose llama.cpp logs (set to "info" or "debug" for debugging)
+      LLAMA_LOG: error
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

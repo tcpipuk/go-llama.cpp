@@ -13,7 +13,38 @@
 // Global error handling
 static std::string g_last_error;
 
+// Global log level control
+static ggml_log_level g_min_log_level = GGML_LOG_LEVEL_INFO;
+
+// Log callback that respects LLAMA_LOG environment variable
+static void llama_log_callback(ggml_log_level level, const char * text, void * /*user_data*/) {
+    if (level >= g_min_log_level) {
+        fprintf(stderr, "%s", text);
+    }
+}
+
 extern "C" {
+
+// Initialise logging based on LLAMA_LOG environment variable
+// Supported values: none, debug, info (default), warn, error
+void llama_wrapper_init_logging() {
+    const char* log_level = std::getenv("LLAMA_LOG");
+    if (log_level != nullptr) {
+        std::string level_str(log_level);
+        if (level_str == "none") {
+            g_min_log_level = GGML_LOG_LEVEL_NONE;
+        } else if (level_str == "debug") {
+            g_min_log_level = GGML_LOG_LEVEL_DEBUG;
+        } else if (level_str == "info") {
+            g_min_log_level = GGML_LOG_LEVEL_INFO;
+        } else if (level_str == "warn") {
+            g_min_log_level = GGML_LOG_LEVEL_WARN;
+        } else if (level_str == "error") {
+            g_min_log_level = GGML_LOG_LEVEL_ERROR;
+        }
+    }
+    llama_log_set(llama_log_callback, nullptr);
+}
 
 // Forward declaration of Go callback function
 extern bool goTokenCallback(uintptr_t handle, const char* token);

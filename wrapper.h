@@ -41,6 +41,9 @@ typedef struct {
 // Callback for streaming tokens
 typedef bool (*llama_wrapper_token_callback)(const char* token);
 
+// Logging initialization
+void llama_wrapper_init_logging();
+
 // Model management
 void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_params params);
 void llama_wrapper_model_free(void* model);

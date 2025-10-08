@@ -17,6 +17,11 @@ import (
 */
 import "C"
 
+func init() {
+	// Initialize llama.cpp logging based on LLAMA_LOG environment variable
+	C.llama_wrapper_init_logging()
+}
+
 // context represents a single execution context with usage tracking
 type context struct {
 	ptr     unsafe.Pointer // llama_wrapper_context_t*
