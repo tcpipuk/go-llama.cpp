@@ -12,10 +12,16 @@ which hasn't been maintained since October 2023. The goal is keeping Go develope
 llama.cpp whilst offering a lighter, more performant alternative to Python-based ML stacks like
 PyTorch and/or vLLM.
 
-**Documentation**: See [getting started guide](docs/getting-started.md),
-[building guide](docs/building.md), [API guide](docs/api-guide.md), [examples](examples/README.md),
-[Go package docs](https://pkg.go.dev/github.com/tcpipuk/llama-go), and
-[llama.cpp](https://github.com/ggml-org/llama.cpp) for model format and engine details.
+**Documentation**:
+
+- **Getting started**: [Installation guide](docs/getting-started.md) |
+  [Build options](docs/building.md)
+- **API reference**: [pkg.go.dev](https://pkg.go.dev/github.com/tcpipuk/llama-go) (complete godoc
+  with examples)
+- **Examples**: [Working code examples](examples/) for chat, streaming, embeddings, speculative
+  decoding
+- **Upstream**: [llama.cpp](https://github.com/ggml-org/llama.cpp) for model formats and engine
+  details
 
 ## Quick start
 
@@ -41,6 +47,7 @@ go run ./examples/simple -m Qwen3-0.6B-Q8_0.gguf -p "Hello world" -n 50
 package main
 
 import (
+    "context"
     "fmt"
     llama "github.com/tcpipuk/llama-go"
 )
@@ -56,12 +63,25 @@ func main() {
     }
     defer model.Close()
 
-    response, err := model.Generate("Hello world", llama.WithMaxTokens(50))
+    // Chat completion (uses model's chat template)
+    messages := []llama.ChatMessage{
+        {Role: "system", Content: "You are a helpful assistant."},
+        {Role: "user", Content: "What is the capital of France?"},
+    }
+    response, err := model.Chat(context.Background(), messages, llama.ChatOptions{
+        MaxTokens: llama.Int(100),
+    })
     if err != nil {
         panic(err)
     }
+    fmt.Println(response.Content)
 
-    fmt.Println(response)
+    // Or raw text generation
+    text, err := model.Generate("Hello world", llama.WithMaxTokens(50))
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(text)
 }
 ```
 
@@ -73,8 +93,9 @@ export LIBRARY_PATH=$PWD C_INCLUDE_PATH=$PWD LD_LIBRARY_PATH=$PWD
 
 ## Key capabilities
 
-**Text generation and embeddings**: Generate text with LLMs or extract embeddings for semantic
-search, clustering, and similarity tasks.
+**Text generation and chat**: Generate text with LLMs using native chat completion (with automatic
+chat template formatting) or raw text generation. Extract embeddings for semantic search,
+clustering, and similarity tasks.
 
 **GPU acceleration**: Supports NVIDIA (CUDA), AMD (ROCm), Apple Silicon (Metal), Intel (SYCL), and
 cross-platform acceleration (Vulkan, OpenCL). Eight backend options cover virtually all modern GPU
@@ -86,8 +107,8 @@ use, not a demo project.
 
 **Advanced features**: Cache common prompt prefixes to avoid recomputing system prompts across
 thousands of generations. Serve multiple concurrent requests with a single model loaded in VRAM (no
-weight duplication). Stream tokens as they generate for ChatGPT-style typing effects. Speculative
-decoding for 2-3× generation speedup.
+weight duplication). Stream tokens via callbacks or buffered channels (decouples GPU inference from
+slow processing). Speculative decoding for 2-3× generation speedup.
 
 ## Architecture
 
