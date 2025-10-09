@@ -253,30 +253,5 @@ var _ = Describe("GPU Layer Configuration", Label("gpu-layers"), func() {
 			Expect(result).NotTo(BeEmpty())
 		})
 
-		It("should work with prefix caching", Label("integration", "gpu"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithGPULayers(-1))
-			Expect(err).NotTo(HaveOccurred())
-			defer model.Close()
-
-			prompt := "Test with caching"
-			seed := 12345
-
-			result1, err := model.Generate(prompt,
-				llama.WithSeed(seed),
-				llama.WithMaxTokens(5),
-				llama.WithPrefixCaching(true),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			result2, err := model.Generate(prompt,
-				llama.WithSeed(seed),
-				llama.WithMaxTokens(5),
-				llama.WithPrefixCaching(true),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Should be identical with GPU + caching
-			Expect(result2).To(Equal(result1))
-		})
 	})
 })

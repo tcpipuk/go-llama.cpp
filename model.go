@@ -159,7 +159,7 @@ var defaultModelConfig = modelConfig{
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
-	threadsBatch:  0,      // 0 means use same as threads (set in wrapper)
+	threadsBatch:  0, // 0 means use same as threads (set in wrapper)
 	f16Memory:     false,
 	mlock:         false,
 	mmap:          true,
@@ -167,7 +167,7 @@ var defaultModelConfig = modelConfig{
 	minContexts:   1,
 	maxContexts:   1,
 	idleTimeout:   1 * time.Minute,
-	prefixCaching: true,    // Enable by default for performance
+	prefixCaching: true,   // Enable by default for performance
 	kvCacheType:   "q8_0", // 50% VRAM savings with ~0.1% quality loss
 }
 

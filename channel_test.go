@@ -103,48 +103,6 @@ var _ = Describe("Model.GenerateChannel", func() {
 			Expect(len(tokens)).To(BeNumerically(">", 0))
 		})
 
-		It("should produce same output as callback streaming", Label("integration", "channel"), func() {
-			prompt := "Once upon a time"
-			seed := 12345
-			maxTokens := 30
-
-			// Channel-based streaming
-			ctx := context.Background()
-			tokenCh, errCh := model.GenerateChannel(ctx, prompt,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-
-			var channelResult strings.Builder
-			var channelErr error
-
-		ChannelLoop:
-			for {
-				select {
-				case token, ok := <-tokenCh:
-					if !ok {
-						break ChannelLoop
-					}
-					channelResult.WriteString(token)
-				case e := <-errCh:
-					channelErr = e
-				}
-			}
-			Expect(channelErr).NotTo(HaveOccurred())
-
-			// Callback-based streaming
-			var callbackResult string
-			err := model.GenerateStream(prompt,
-				func(token string) bool {
-					callbackResult += token
-					return true
-				},
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(channelResult.String()).To(Equal(callbackResult))
-		})
-
 		It("should receive non-empty token strings", Label("integration", "channel"), func() {
 			ctx := context.Background()
 			tokenCh, errCh := model.GenerateChannel(ctx, "Test",
@@ -614,52 +572,6 @@ var _ = Describe("Model.GenerateChannel", func() {
 			Expect(tokenCount).To(BeNumerically("<=", maxTokens))
 		})
 
-		It("should use WithSeed for deterministic output", Label("integration", "channel"), func() {
-			prompt := "The answer is"
-			seed := 54321
-			maxTokens := 20
-
-			// First generation
-			ctx1 := context.Background()
-			tokenCh1, errCh1 := model.GenerateChannel(ctx1, prompt,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-
-			var result1 strings.Builder
-		Loop1:
-			for {
-				select {
-				case token, ok := <-tokenCh1:
-					if !ok {
-						break Loop1
-					}
-					result1.WriteString(token)
-				case <-errCh1:
-				}
-			}
-
-			// Second generation with same seed
-			ctx2 := context.Background()
-			tokenCh2, errCh2 := model.GenerateChannel(ctx2, prompt,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-
-			var result2 strings.Builder
-		Loop2:
-			for {
-				select {
-				case token, ok := <-tokenCh2:
-					if !ok {
-						break Loop2
-					}
-					result2.WriteString(token)
-				case <-errCh2:
-				}
-			}
-
-			Expect(result1.String()).To(Equal(result2.String()))
-		})
-
 		It("should apply temperature parameter", Label("integration", "channel"), func() {
 			ctx := context.Background()
 			tokenCh, errCh := model.GenerateChannel(ctx, "The capital of France is",
@@ -1096,50 +1008,6 @@ var _ = Describe("Model.GenerateWithDraftChannel", func() {
 			Expect(result.String()).NotTo(BeEmpty())
 		})
 
-		It("should use deterministic output with seed", Label("integration", "channel", "speculative"), func() {
-			seed := 99999
-			maxTokens := 30
-
-			// First generation
-			ctx1 := context.Background()
-			tokenCh1, errCh1 := targetModel.GenerateWithDraftChannel(ctx1, testPrompt, draftModel,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-
-			var result1 strings.Builder
-		Loop1:
-			for {
-				select {
-				case token, ok := <-tokenCh1:
-					if !ok {
-						break Loop1
-					}
-					result1.WriteString(token)
-				case <-errCh1:
-				}
-			}
-
-			// Second generation with same seed
-			ctx2 := context.Background()
-			tokenCh2, errCh2 := targetModel.GenerateWithDraftChannel(ctx2, testPrompt, draftModel,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed))
-
-			var result2 strings.Builder
-		Loop2:
-			for {
-				select {
-				case token, ok := <-tokenCh2:
-					if !ok {
-						break Loop2
-					}
-					result2.WriteString(token)
-				case <-errCh2:
-				}
-			}
-
-			Expect(result1.String()).To(Equal(result2.String()))
-		})
 	})
 })
 

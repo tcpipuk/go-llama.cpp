@@ -45,9 +45,9 @@ type RuntimeInfo struct {
 // This includes GPU information, model metadata from GGUF, and runtime
 // configuration. Use Model.Stats() to retrieve these statistics.
 type ModelStats struct {
-	GPUs     []GPUInfo      // Information about available CUDA GPUs
-	Metadata ModelMetadata  // Model metadata from GGUF file
-	Runtime  RuntimeInfo    // Runtime configuration and resource usage
+	GPUs     []GPUInfo     // Information about available CUDA GPUs
+	Metadata ModelMetadata // Model metadata from GGUF file
+	Runtime  RuntimeInfo   // Runtime configuration and resource usage
 }
 
 // Stats returns comprehensive statistics about the model and runtime environment.

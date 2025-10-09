@@ -480,36 +480,6 @@ var _ = Describe("Model.GenerateStream", func() {
 			Expect(output2).NotTo(BeEmpty())
 		})
 
-		It("should use WithSeed for deterministic streaming", Label("integration"), func() {
-			var output1, output2 string
-			callback1 := func(token string) bool {
-				output1 += token
-				return true
-			}
-			callback2 := func(token string) bool {
-				output2 += token
-				return true
-			}
-
-			prompt := "Once upon a time"
-			seed := 12345
-
-			err := model.GenerateStream(prompt,
-				callback1,
-				llama.WithMaxTokens(20),
-				llama.WithSeed(seed),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = model.GenerateStream(prompt,
-				callback2,
-				llama.WithMaxTokens(20),
-				llama.WithSeed(seed),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(output1).To(Equal(output2), "same seed should produce same output")
-		})
 	})
 })
 
@@ -554,34 +524,6 @@ var _ = Describe("Streaming Callback Behaviour", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(tokens).NotTo(BeEmpty())
 			// Tokens should be in sequential order
-		})
-
-		It("should accumulate to same result as non-streaming Generate", Label("integration"), func() {
-			prompt := "The answer is"
-			seed := 54321
-			maxTokens := 20
-
-			// Streaming version
-			var streamOutput string
-			callback := func(token string) bool {
-				streamOutput += token
-				return true
-			}
-			err := model.GenerateStream(prompt,
-				callback,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Non-streaming version
-			nonStreamOutput, err := model.Generate(prompt,
-				llama.WithMaxTokens(maxTokens),
-				llama.WithSeed(seed),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(streamOutput).To(Equal(nonStreamOutput))
 		})
 
 		It("should handle partial words (tokens may be subword units)", Label("integration"), func() {

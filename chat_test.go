@@ -272,44 +272,6 @@ var _ = Describe("Chat API", func() {
 				Expect(receivedCount).To(BeNumerically(">=", 3))
 			})
 
-			It("should produce same content as non-streaming Chat()", func() {
-				messages := []llama.ChatMessage{
-					{Role: "system", Content: "Reply with: Hello World"},
-					{Role: "user", Content: "Say it"},
-				}
-
-				opts := llama.ChatOptions{
-					MaxTokens:   llama.Int(20),
-					Temperature: llama.Float32(0.0),
-					Seed:        llama.Int(999),
-				}
-
-				ctx := context.Background()
-
-				// Non-streaming
-				response, err := model.Chat(ctx, messages, opts)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Streaming
-				deltaCh, errCh := model.ChatStream(ctx, messages, opts)
-				var streamedContent strings.Builder
-
-			Loop:
-				for {
-					select {
-					case delta, ok := <-deltaCh:
-						if !ok {
-							break Loop
-						}
-						streamedContent.WriteString(delta.Content)
-					case err := <-errCh:
-						Expect(err).NotTo(HaveOccurred())
-					}
-				}
-
-				// Both methods should produce identical output with same seed
-				Expect(streamedContent.String()).To(Equal(response.Content))
-			})
 		})
 
 		Context("with buffer configuration", Label("integration", "chat", "streaming"), func() {

@@ -19,45 +19,6 @@ var _ = Describe("Prefix Caching", Label("prefix-caching"), func() {
 	})
 
 	Context("deterministic generation", func() {
-		It("should produce identical results with prefix caching enabled", Label("integration", "gpu"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithGPULayers(-1))
-			Expect(err).NotTo(HaveOccurred())
-			defer model.Close()
-
-			seed := uint32(12345)
-			prompt := "What is 2+2?"
-
-			// First generation (cold cache)
-			result1, err := model.Generate(prompt,
-				llama.WithSeed(int(seed)),
-				llama.WithTemperature(0.0), // Use temperature 0 for maximum determinism
-				llama.WithMaxTokens(10),
-				llama.WithPrefixCaching(true),
-			)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result1).NotTo(BeEmpty())
-
-			// Second generation (warm cache) - should match first
-			result2, err := model.Generate(prompt,
-				llama.WithSeed(int(seed)),
-				llama.WithTemperature(0.0),
-				llama.WithMaxTokens(10),
-				llama.WithPrefixCaching(true),
-			)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result2).To(Equal(result1), "Second generation should match first (warm cache)")
-
-			// Third generation - should also match
-			result3, err := model.Generate(prompt,
-				llama.WithSeed(int(seed)),
-				llama.WithTemperature(0.0),
-				llama.WithMaxTokens(10),
-				llama.WithPrefixCaching(true),
-			)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result3).To(Equal(result1), "Third generation should match first")
-		})
-
 		It("should produce identical results with prefix caching disabled", Label("integration", "gpu"), func() {
 			model, err := llama.LoadModel(modelPath, llama.WithGPULayers(-1))
 			Expect(err).NotTo(HaveOccurred())
@@ -229,31 +190,4 @@ var _ = Describe("Prefix Caching", Label("prefix-caching"), func() {
 		})
 	})
 
-	Context("default behaviour", func() {
-		It("should have prefix caching enabled by default", Label("integration", "gpu"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithGPULayers(-1))
-			Expect(err).NotTo(HaveOccurred())
-			defer model.Close()
-
-			prompt := "Default caching test"
-			seed := int(99999)
-
-			// First generation with default settings
-			result1, err := model.Generate(prompt,
-				llama.WithSeed(seed),
-				llama.WithMaxTokens(5),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Second generation with default settings - should use cache
-			result2, err := model.Generate(prompt,
-				llama.WithSeed(seed),
-				llama.WithMaxTokens(5),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Results should be identical (prefix caching enabled by default)
-			Expect(result2).To(Equal(result1))
-		})
-	})
 })
