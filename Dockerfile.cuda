@@ -57,5 +57,8 @@ ENV C_INCLUDE_PATH=/workspace
 ENV LD_LIBRARY_PATH=/workspace:/usr/local/cuda/lib64
 ENV PATH=/usr/local/cuda/bin:${PATH}
 
+# Override NVIDIA's entrypoint to suppress banner and simplify usage
+ENTRYPOINT ["/bin/bash", "-c"]
+
 # Build command (can be overridden)
-CMD ["bash", "-c", "BUILD_TYPE=cublas CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} make libbinding.a"]
+CMD ["BUILD_TYPE=cublas CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} make libbinding.a"]
