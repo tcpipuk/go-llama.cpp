@@ -35,6 +35,12 @@ func newContextPool(model unsafe.Pointer, config modelConfig) (*contextPool, err
 		defer C.free(unsafe.Pointer(cTensorSplit))
 	}
 
+	var cKVCacheType *C.char
+	if config.kvCacheType != "" {
+		cKVCacheType = C.CString(config.kvCacheType)
+		defer C.free(unsafe.Pointer(cKVCacheType))
+	}
+
 	params := C.llama_wrapper_model_params{
 		n_ctx:           C.int(config.contextSize),
 		n_batch:         C.int(config.batchSize),
@@ -47,6 +53,7 @@ func newContextPool(model unsafe.Pointer, config modelConfig) (*contextPool, err
 		embeddings:      C.bool(config.embeddings),
 		main_gpu:        cMainGPU,
 		tensor_split:    cTensorSplit,
+		kv_cache_type:   cKVCacheType,
 	}
 
 	// Create min contexts upfront
@@ -99,6 +106,12 @@ func (p *contextPool) acquire() (*context, error) {
 				defer C.free(unsafe.Pointer(cTensorSplit))
 			}
 
+			var cKVCacheType *C.char
+			if p.config.kvCacheType != "" {
+				cKVCacheType = C.CString(p.config.kvCacheType)
+				defer C.free(unsafe.Pointer(cKVCacheType))
+			}
+
 			params := C.llama_wrapper_model_params{
 				n_ctx:           C.int(p.config.contextSize),
 				n_batch:         C.int(p.config.batchSize),
@@ -111,6 +124,7 @@ func (p *contextPool) acquire() (*context, error) {
 				embeddings:      C.bool(p.config.embeddings),
 				main_gpu:        cMainGPU,
 				tensor_split:    cTensorSplit,
+				kv_cache_type:   cKVCacheType,
 			}
 
 			ctxPtr := C.llama_wrapper_context_create(p.model, params)

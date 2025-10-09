@@ -20,6 +20,7 @@ typedef struct {
     bool embeddings;       // Enable embeddings
     const char* main_gpu;   // Main GPU
     const char* tensor_split; // Tensor split
+    const char* kv_cache_type; // KV cache quantization: "f16", "q8_0", "q4_0"
 } llama_wrapper_model_params;
 
 // Generation parameters
@@ -111,6 +112,69 @@ int llama_wrapper_get_cached_token_count(void* ctx);
 
 // Get model's native maximum context length
 int llama_wrapper_get_model_context_length(void* model);
+
+// Chat template support
+const char* llama_wrapper_get_chat_template(void* model);
+char* llama_wrapper_apply_chat_template(const char* tmpl, const char** roles, const char** contents, int n_messages, bool add_assistant);
+
+// Reasoning content parsing
+typedef enum {
+    REASONING_FORMAT_NONE = 0,
+    REASONING_FORMAT_AUTO = 1,
+    REASONING_FORMAT_DEEPSEEK_LEGACY = 2,
+    REASONING_FORMAT_DEEPSEEK = 3
+} llama_wrapper_reasoning_format;
+
+typedef struct {
+    const char* content;
+    const char* reasoning_content;  // NULL if empty
+} llama_wrapper_parsed_message;
+
+// Parse model output to extract reasoning/thinking content
+// For streaming: call with is_partial=true, reasoning_format=DEEPSEEK or AUTO
+// Returns NULL on error. Free result with llama_wrapper_free_parsed_message()
+llama_wrapper_parsed_message* llama_wrapper_parse_reasoning(
+    const char* text,
+    bool is_partial,
+    llama_wrapper_reasoning_format format,
+    int chat_format
+);
+
+void llama_wrapper_free_parsed_message(llama_wrapper_parsed_message* msg);
+
+// Chat format auto-detection from model metadata
+void* llama_wrapper_chat_templates_init(void* model, const char* template_override);
+void llama_wrapper_chat_templates_free(void* templates);
+int llama_wrapper_chat_templates_get_format(void* templates);
+
+// Chat format constants (values match common_chat_format enum in llama.cpp/common/chat.h)
+#define LLAMA_CHAT_FORMAT_CONTENT_ONLY 0
+
+// Model metadata access
+const char* llama_wrapper_model_meta_string(void* model, const char* key);
+int llama_wrapper_model_meta_count(void* model);
+
+// GPU information
+typedef struct {
+    int device_id;
+    char device_name[256];
+    int free_memory_mb;
+    int total_memory_mb;
+} llama_wrapper_gpu_info;
+
+int llama_wrapper_get_gpu_count();
+bool llama_wrapper_get_gpu_info(int device_id, llama_wrapper_gpu_info* info);
+
+// Model runtime information
+typedef struct {
+    int n_ctx;           // Context size
+    int n_batch;         // Batch size
+    int kv_cache_size_mb; // Estimated KV cache memory usage
+    int gpu_layers;      // GPU layers loaded
+    int total_layers;    // Total layers in model
+} llama_wrapper_runtime_info;
+
+void llama_wrapper_get_runtime_info(void* model, void* ctx, const char* kv_cache_type, llama_wrapper_runtime_info* info);
 
 #ifdef __cplusplus
 }

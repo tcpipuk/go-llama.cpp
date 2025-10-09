@@ -1,124 +1,150 @@
-// Streaming example demonstrates token-by-token generation using callbacks.
+// Streaming example demonstrates both callback and channel-based token streaming.
 //
-// This interactive program loads a GGUF model and accepts multi-line prompts,
-// streaming generated tokens to stdout as they're produced. This showcases
-// real-time response generation suitable for chat interfaces or interactive
-// applications.
+// This example shows two approaches to streaming generation:
+//   - Callback-based: Direct function callbacks for each token (default)
+//   - Channel-based: Go channels with context support for cancellation
 //
 // Usage:
 //
-//	streaming -m model.gguf
+//	# Callback-based streaming (default)
+//	streaming -model model.gguf -prompt "Hello world" -max-tokens 50
 //
-// The program prompts for input interactively. Enter your prompt on one or
-// more lines, then submit with an empty line. Generated text streams to stdout
-// token-by-token as the model produces it.
+//	# Channel-based streaming with timeout
+//	streaming -model model.gguf -prompt "Hello world" -max-tokens 50 -channel -timeout 30
+//
+// The callback approach is simpler for basic use cases, whilst the channel
+// approach provides better integration with Go's concurrency patterns and
+// supports cancellation via context.Context.
 //
 // The example demonstrates:
-//   - Streaming generation with callbacks
-//   - Interactive multi-line input handling
-//   - Real-time token output
-//   - Stop word configuration for controlled responses
-//   - Graceful error handling during generation
-//
-// This pattern is ideal for building chat applications, REPLs, or any interface
-// requiring immediate feedback during generation.
+//   - Both streaming approaches with identical output
+//   - Context-based cancellation and timeout handling
+//   - Real-time token output as the model generates text
+//   - Error handling during generation
+//   - Configuration via command-line flags
 package main
 
 import (
-	"bufio"
+	"context"
 	"flag"
 	"fmt"
-	"os"
+	"log"
 	"runtime"
 	"strings"
+	"time"
 
 	llama "github.com/tcpipuk/llama-go"
 )
 
+var (
+	modelPath  = flag.String("model", "./Qwen3-0.6B-Q8_0.gguf", "path to GGUF model file")
+	prompt     = flag.String("prompt", "Once upon a time", "prompt text")
+	maxTokens  = flag.Int("max-tokens", 100, "maximum tokens to generate")
+	contextLen = flag.Int("context", 2048, "context size")
+	gpuLayers  = flag.Int("ngl", -1, "number of GPU layers (-1 for all)")
+	temp       = flag.Float64("temperature", 0.8, "temperature")
+	topP       = flag.Float64("top-p", 0.9, "top-p for sampling")
+	topK       = flag.Int("top-k", 40, "top-k for sampling")
+	useChannel = flag.Bool("channel", false, "use channel-based streaming instead of callbacks")
+	timeout    = flag.Int("timeout", 30, "timeout in seconds (channel mode only)")
+)
+
 func main() {
-	var (
-		modelPath = flag.String("m", "./Qwen3-0.6B-Q8_0.gguf", "path to GGUF model file")
-		maxTokens = flag.Int("n", 512, "maximum number of tokens to generate")
-		context   = flag.Int("c", 2048, "context size")
-		gpuLayers = flag.Int("ngl", -1, "number of GPU layers (-1 for all)")
-		temp      = flag.Float64("temp", 0.8, "temperature for sampling")
-		topP      = flag.Float64("top-p", 0.9, "top-p for sampling")
-		topK      = flag.Int("top-k", 40, "top-k for sampling")
-	)
 	flag.Parse()
+
+	if *modelPath == "" {
+		log.Fatal("Please provide --model path")
+	}
 
 	// Load model
 	fmt.Printf("Loading model: %s\n", *modelPath)
 	model, err := llama.LoadModel(*modelPath,
-		llama.WithContext(*context),
+		llama.WithContext(*contextLen),
 		llama.WithGPULayers(*gpuLayers),
 		llama.WithThreads(runtime.NumCPU()),
 		llama.WithF16Memory(),
 		llama.WithMMap(true),
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading model: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to load model: %v", err)
 	}
 	defer model.Close()
 
-	fmt.Printf("Model loaded successfully.\n")
-	fmt.Println("Interactive streaming mode - enter prompts (empty line to submit, Ctrl+C to exit)")
+	fmt.Printf("Model loaded successfully.\n\n")
 
-	reader := bufio.NewReader(os.Stdin)
-
-	for {
-		prompt := readMultiLineInput(reader)
-		if prompt == "" {
-			continue
-		}
-
-		fmt.Printf("\nGenerating response:\n")
-
-		// Generate with streaming callback
-		err := model.GenerateStream(prompt,
-			func(token string) bool {
-				fmt.Print(token)
-				return true // Continue generation
-			},
-			llama.WithMaxTokens(*maxTokens),
-			llama.WithTemperature(float32(*temp)),
-			llama.WithTopP(float32(*topP)),
-			llama.WithTopK(*topK),
-			llama.WithStopWords("Human:", "Assistant:", "\n\n"),
-		)
-
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nError generating text: %v\n", err)
-		}
-
-		fmt.Printf("\n\n--- End of response ---\n\n")
+	if *useChannel {
+		streamWithChannels(model)
+	} else {
+		streamWithCallbacks(model)
 	}
 }
 
-// readMultiLineInput reads input until an empty line is entered
-func readMultiLineInput(reader *bufio.Reader) string {
-	var lines []string
-	fmt.Print(">>> ")
+func streamWithCallbacks(model *llama.Model) {
+	fmt.Println("=== Callback-based streaming ===")
+	fmt.Printf("Prompt: %s\n", *prompt)
+	fmt.Printf("Max tokens: %d\n\n", *maxTokens)
 
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if strings.Contains(err.Error(), "EOF") {
-				os.Exit(0)
-			}
-			fmt.Printf("Error reading input: %v\n", err)
-			continue
-		}
+	var result strings.Builder
+	err := model.GenerateStream(*prompt,
+		func(token string) bool {
+			fmt.Print(token)
+			result.WriteString(token)
+			return true
+		},
+		llama.WithMaxTokens(*maxTokens),
+		llama.WithTemperature(float32(*temp)),
+		llama.WithTopP(float32(*topP)),
+		llama.WithTopK(*topK),
+	)
 
-		if len(strings.TrimSpace(line)) == 0 {
-			break
-		}
-
-		lines = append(lines, line)
+	if err != nil {
+		log.Fatalf("Generation failed: %v", err)
 	}
 
-	text := strings.Join(lines, "")
-	fmt.Printf("Sending: %s\n", strings.TrimSpace(text))
-	return text
+	fmt.Printf("\n\n=== Complete (%d chars) ===\n", result.Len())
+}
+
+func streamWithChannels(model *llama.Model) {
+	fmt.Println("=== Channel-based streaming ===")
+	fmt.Printf("Prompt: %s\n", *prompt)
+	fmt.Printf("Max tokens: %d\n", *maxTokens)
+	fmt.Printf("Timeout: %d seconds\n\n", *timeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout)*time.Second)
+	defer cancel()
+
+	tokenCh, errCh := model.GenerateChannel(ctx, *prompt,
+		llama.WithMaxTokens(*maxTokens),
+		llama.WithTemperature(float32(*temp)),
+		llama.WithTopP(float32(*topP)),
+		llama.WithTopK(*topK),
+	)
+
+	var result strings.Builder
+	tokenCount := 0
+
+	for {
+		select {
+		case token, ok := <-tokenCh:
+			if !ok {
+				// Channel closed, generation complete
+				fmt.Printf("\n\n=== Complete (%d tokens, %d chars) ===\n",
+					tokenCount, result.Len())
+				return
+			}
+			fmt.Print(token)
+			result.WriteString(token)
+			tokenCount++
+
+		case err := <-errCh:
+			if err != nil {
+				log.Fatalf("Generation error: %v", err)
+			}
+
+		case <-ctx.Done():
+			fmt.Printf("\n\n=== Cancelled (%v) after %d tokens ===\n",
+				ctx.Err(), tokenCount)
+			return
+		}
+	}
 }

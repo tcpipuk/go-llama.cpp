@@ -269,3 +269,47 @@ func WithIdleTimeout(d time.Duration) ModelOption {
 		c.idleTimeout = d
 	}
 }
+
+// WithKVCacheType sets the quantization type for KV cache storage.
+//
+// The KV (key-value) cache stores attention states during generation and grows
+// with context length. Quantizing this cache dramatically reduces VRAM usage
+// with minimal quality impact:
+//
+//   - "q8_0" (default): 50% VRAM savings, ~0.1% quality loss (imperceptible)
+//   - "f16": Full precision, no savings, maximum quality
+//   - "q4_0": 75% VRAM savings, noticeable quality loss (models become forgetful)
+//
+// Memory scaling example for 131K context (DeepSeek-R1 trained capacity):
+//   - f16:  18 GB
+//   - q8_0:  9 GB (recommended)
+//   - q4_0:  4.5 GB (use only for extreme VRAM constraints)
+//
+// Default: "q8_0" (best balance of memory and quality)
+//
+// Examples:
+//
+//	// Use default Q8 quantization (recommended)
+//	model, err := llama.LoadModel("model.gguf")
+//
+//	// Maximum quality for VRAM-rich systems
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithKVCacheType("f16"),
+//	)
+//
+//	// Extreme memory savings (accept quality loss)
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithKVCacheType("q4_0"),
+//	)
+func WithKVCacheType(cacheType string) ModelOption {
+	return func(c *modelConfig) {
+		// Validate cache type
+		switch cacheType {
+		case "f16", "q8_0", "q4_0":
+			c.kvCacheType = cacheType
+		default:
+			// Silently ignore invalid types and keep default
+			// This prevents hard failures from typos while maintaining sensible behaviour
+		}
+	}
+}

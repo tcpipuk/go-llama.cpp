@@ -140,6 +140,7 @@ endif
 ifeq ($(BUILD_TYPE),cublas)
 	EXTRA_LIBS=
 	CMAKE_ARGS+=-DGGML_CUDA=ON
+	CXXFLAGS+=-DGGML_USE_CUDA
 	ifdef CUDA_ARCHITECTURES
 		CMAKE_ARGS+=-DCMAKE_CUDA_ARCHITECTURES="$(CUDA_ARCHITECTURES)"
 	endif
@@ -154,6 +155,7 @@ ifeq ($(BUILD_TYPE),hipblas)
 	GPU_TARGETS ?= gfx900,gfx90a,gfx1030,gfx1031,gfx1100
 	AMDGPU_TARGETS ?= "$(GPU_TARGETS)"
 	CMAKE_ARGS+=-DGGML_HIP=ON -DAMDGPU_TARGETS="$(AMDGPU_TARGETS)" -DGPU_TARGETS="$(GPU_TARGETS)"
+	CXXFLAGS+=-DGGML_USE_HIP
 	EXTRA_TARGETS+=llama.cpp/ggml-cuda.o
 	GGML_CUDA_OBJ_PATH=ggml/src/ggml-hip/CMakeFiles/ggml-hip.dir/ggml-cuda.cu.o
 endif
@@ -249,6 +251,9 @@ libbinding.a: llama.cpp/ggml.o wrapper.o $(EXTRA_TARGETS)
 	cp build/bin/libggml-base.so .
 	cp build/bin/libggml-cpu.so .
 	cp build/common/libcommon.a .
+ifeq ($(BUILD_TYPE),cublas)
+	cp build/bin/libggml-cuda.so .
+endif
 
 clean:
 	rm -rf *.o

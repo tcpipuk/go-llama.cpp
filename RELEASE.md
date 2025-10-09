@@ -25,8 +25,8 @@ Before updating, ensure a clean build environment:
 ls -la *.a *.so 2>/dev/null
 
 # Clean all build artifacts using Docker for consistent environment
-docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/act-runner:ubuntu-rolling \
-  make clean
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
+  "make clean"
 
 # Verify cleanup - should return no results
 ls -la *.a *.so 2>/dev/null
@@ -79,7 +79,7 @@ ls -la libbinding.a 2>/dev/null  # Should return nothing
 
 # Build with Docker for consistent environment (expect 15-20 minutes)
 docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
-  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace make libbinding.a"
+  "make libbinding.a"
 
 # Verify build created all artifacts
 ls -la libbinding.a libcommon.a *.so
@@ -94,22 +94,19 @@ ls -la Qwen3-Embedding-0.6B-Q8_0.gguf 2>/dev/null || \
   wget -q https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
 
 # Test inference pipeline
-docker run --rm -v $(pwd):/workspace -w /workspace golang:latest \
-  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
-           go run ./examples -m Qwen3-0.6B-Q8_0.gguf -p 'Hello world' -n 50"
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
+  "go run ./examples/simple -m Qwen3-0.6B-Q8_0.gguf -p 'Hello world' -n 50"
 
 # Test embedding functionality
-docker run --rm -v $(pwd):/workspace -w /workspace golang:latest \
-  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
-           go run ./examples/embedding -m Qwen3-Embedding-0.6B-Q8_0.gguf -t 'Hello world'"
+docker run --rm -v $(pwd):/workspace -w /workspace git.tomfos.tr/tom/llama-go:build-cuda \
+  "go run ./examples/embedding -m Qwen3-Embedding-0.6B-Q8_0.gguf -t 'Hello world'"
 
 # Run test suite with test model (tests inference, speculative sampling, tokenisation)
 # Use build-cuda container which includes correct CUDA drivers and Go version
 docker run --rm --gpus all -v $(pwd):/workspace -w /workspace \
   -e TEST_MODEL=Qwen3-0.6B-Q8_0.gguf -e LLAMA_LOG=error \
   git.tomfos.tr/tom/llama-go:build-cuda \
-  bash -c "LIBRARY_PATH=/workspace C_INCLUDE_PATH=/workspace LD_LIBRARY_PATH=/workspace \
-           go run github.com/onsi/ginkgo/v2/ginkgo -v ./..."
+  "go run github.com/onsi/ginkgo/v2/ginkgo -v ./..."
 ```
 
 **Verification**: All commands must complete successfully with expected output before proceeding.

@@ -11,7 +11,7 @@ import (
 /*
 #cgo CFLAGS: -I./llama.cpp -I./ -I./llama.cpp/ggml/include -I./llama.cpp/include -I./llama.cpp/common
 #cgo CPPFLAGS: -I./llama.cpp -I./ -I./llama.cpp/ggml/include -I./llama.cpp/include -I./llama.cpp/common
-#cgo LDFLAGS: -L./ -lcommon -lllama -lggml-cpu -lggml-base -lggml -lstdc++ -lm
+#cgo LDFLAGS: -L./ -lbinding -lcommon -lllama -lggml-cpu -lggml-base -lggml -lstdc++ -lm
 #include "wrapper.h"
 #include <stdlib.h>
 */
@@ -19,6 +19,26 @@ import "C"
 
 func init() {
 	// Initialize llama.cpp logging based on LLAMA_LOG environment variable
+	C.llama_wrapper_init_logging()
+}
+
+// InitLogging (re)initializes llama.cpp logging system based on LLAMA_LOG environment variable.
+//
+// This function is called automatically when the package loads, but can be called again
+// to reconfigure logging after changing the LLAMA_LOG environment variable.
+//
+// Supported LLAMA_LOG values:
+//   - "none" - No logging
+//   - "error" - Only errors
+//   - "warn" - Warnings and errors (recommended for production)
+//   - "info" - Informational messages (default)
+//   - "debug" - Verbose debug output
+//
+// Example:
+//
+//	os.Setenv("LLAMA_LOG", "warn")  // Quiet mode
+//	llama.InitLogging()             // Apply the change
+func InitLogging() {
 	C.llama_wrapper_init_logging()
 }
 
@@ -55,10 +75,11 @@ type contextPool struct {
 //
 // Note: Calling methods after Close() returns an error.
 type Model struct {
-	modelPtr unsafe.Pointer // llama_wrapper_model_t* (weights only)
-	pool     *contextPool
-	mu       sync.RWMutex
-	closed   bool
+	modelPtr      unsafe.Pointer // llama_wrapper_model_t* (weights only)
+	pool          *contextPool
+	mu            sync.RWMutex
+	closed        bool
+	chatTemplates unsafe.Pointer // cached common_chat_templates*
 }
 
 // modelConfig holds configuration for model loading
@@ -77,7 +98,8 @@ type modelConfig struct {
 	minContexts   int
 	maxContexts   int
 	idleTimeout   time.Duration
-	prefixCaching bool // Enable KV cache prefix reuse (default: true)
+	prefixCaching bool   // Enable KV cache prefix reuse (default: true)
+	kvCacheType   string // KV cache quantization type: "f16", "q8_0", "q4_0" (default: "q8_0")
 }
 
 // generateConfig holds configuration for text generation
@@ -137,7 +159,7 @@ var defaultModelConfig = modelConfig{
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
-	threadsBatch:  0, // 0 means use same as threads (set in wrapper)
+	threadsBatch:  0,      // 0 means use same as threads (set in wrapper)
 	f16Memory:     false,
 	mlock:         false,
 	mmap:          true,
@@ -145,7 +167,8 @@ var defaultModelConfig = modelConfig{
 	minContexts:   1,
 	maxContexts:   1,
 	idleTimeout:   1 * time.Minute,
-	prefixCaching: true, // Enable by default for performance
+	prefixCaching: true,    // Enable by default for performance
+	kvCacheType:   "q8_0", // 50% VRAM savings with ~0.1% quality loss
 }
 
 var defaultGenerateConfig = generateConfig{
@@ -282,6 +305,12 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		defer C.free(unsafe.Pointer(cTensorSplit))
 	}
 
+	var cKVCacheType *C.char
+	if config.kvCacheType != "" {
+		cKVCacheType = C.CString(config.kvCacheType)
+		defer C.free(unsafe.Pointer(cKVCacheType))
+	}
+
 	params := C.llama_wrapper_model_params{
 		n_ctx:           C.int(config.contextSize),
 		n_batch:         C.int(config.batchSize),
@@ -294,6 +323,7 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		embeddings:      C.bool(config.embeddings),
 		main_gpu:        cMainGPU,
 		tensor_split:    cTensorSplit,
+		kv_cache_type:   cKVCacheType,
 	}
 
 	// Load model (weights only)
@@ -356,6 +386,12 @@ func (m *Model) Close() error {
 	// Remove finaliser FIRST to prevent race with GC
 	runtime.SetFinalizer(m, nil)
 
+	// Free chat templates if cached
+	if m.chatTemplates != nil {
+		C.llama_wrapper_chat_templates_free(m.chatTemplates)
+		m.chatTemplates = nil
+	}
+
 	// Close pool (frees all contexts)
 	if m.pool != nil {
 		m.pool.close()
@@ -370,4 +406,147 @@ func (m *Model) Close() error {
 
 	m.closed = true
 	return nil
+}
+
+// ChatTemplate returns the chat template from the model's GGUF metadata.
+//
+// Returns an empty string if the model has no embedded chat template.
+// Most modern instruction-tuned models include a template in their GGUF metadata
+// that specifies how to format messages for that specific model.
+//
+// Example:
+//
+//	template := model.ChatTemplate()
+//	if template == "" {
+//	    // Model has no template - user must provide one or use Generate()
+//	}
+func (m *Model) ChatTemplate() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.closed {
+		return ""
+	}
+
+	// Call C function to get template from model metadata
+	cTemplate := C.llama_wrapper_get_chat_template(m.modelPtr)
+	if cTemplate == nil {
+		return ""
+	}
+
+	return C.GoString(cTemplate)
+}
+
+// FormatChatPrompt formats chat messages using the model's chat template.
+//
+// This method applies the chat template to the provided messages and returns
+// the resulting prompt string without performing generation. Useful for:
+//   - Debugging what will be sent to the model
+//   - Pre-computing prompts for caching
+//   - Understanding how the template formats conversations
+//
+// The template priority is: opts.ChatTemplate > model's GGUF template > error.
+//
+// Example:
+//
+//	messages := []llama.ChatMessage{
+//	    {Role: "system", Content: "You are helpful."},
+//	    {Role: "user", Content: "Hello"},
+//	}
+//	prompt, err := model.FormatChatPrompt(messages, llama.ChatOptions{})
+//	fmt.Println("Formatted prompt:", prompt)
+func (m *Model) FormatChatPrompt(messages []ChatMessage, opts ChatOptions) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.closed {
+		return "", fmt.Errorf("model is closed")
+	}
+
+	// Use the same template resolution logic as Chat/ChatStream
+	template := opts.ChatTemplate
+	if template == "" {
+		template = m.ChatTemplate()
+	}
+	if template == "" {
+		return "", fmt.Errorf("no chat template available: provide ChatOptions.ChatTemplate or use a model with embedded template")
+	}
+
+	// Apply template with addAssistant=true (same as generation)
+	return applyChatTemplate(template, messages, true)
+}
+
+// getChatFormat gets the auto-detected chat format for reasoning parsing.
+// This is cached on the model to avoid repeated detection.
+func (m *Model) getChatFormat() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Initialize templates if not cached
+	if m.chatTemplates == nil {
+		m.chatTemplates = C.llama_wrapper_chat_templates_init(m.modelPtr, nil)
+		if m.chatTemplates == nil {
+			// Fallback to CONTENT_ONLY if init fails
+			return int(C.LLAMA_CHAT_FORMAT_CONTENT_ONLY)
+		}
+	}
+
+	return int(C.llama_wrapper_chat_templates_get_format(m.chatTemplates))
+}
+
+// applyChatTemplate applies a Jinja2 chat template to messages.
+//
+// This is an internal helper that wraps llama.cpp's native chat template system.
+// The template can be from GGUF metadata or a custom Jinja2 template string.
+//
+// Returns the formatted prompt string ready for generation, or an error if
+// template application fails.
+func applyChatTemplate(template string, messages []ChatMessage, addAssistant bool) (string, error) {
+	if template == "" {
+		return "", fmt.Errorf("template cannot be empty")
+	}
+	if len(messages) == 0 {
+		return "", fmt.Errorf("messages cannot be empty")
+	}
+
+	// Convert template to C string
+	cTemplate := C.CString(template)
+	defer C.free(unsafe.Pointer(cTemplate))
+
+	// Build C arrays for roles and contents
+	cRoles := make([]*C.char, len(messages))
+	cContents := make([]*C.char, len(messages))
+
+	// Allocate C strings and set up defer cleanup
+	for i, msg := range messages {
+		cRoles[i] = C.CString(msg.Role)
+		cContents[i] = C.CString(msg.Content)
+	}
+
+	// Defer cleanup of all C strings
+	defer func() {
+		for i := range messages {
+			C.free(unsafe.Pointer(cRoles[i]))
+			C.free(unsafe.Pointer(cContents[i]))
+		}
+	}()
+
+	// Call C function to apply template
+	cResult := C.llama_wrapper_apply_chat_template(
+		cTemplate,
+		(**C.char)(unsafe.Pointer(&cRoles[0])),
+		(**C.char)(unsafe.Pointer(&cContents[0])),
+		C.int(len(messages)),
+		C.bool(addAssistant),
+	)
+
+	if cResult == nil {
+		return "", fmt.Errorf("failed to apply chat template: %s", C.GoString(C.llama_wrapper_last_error()))
+	}
+
+	// Convert result and free
+	result := C.GoString(cResult)
+	C.llama_wrapper_free_result(cResult)
+
+	return result, nil
 }

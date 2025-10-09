@@ -59,6 +59,15 @@ func main() {
 	defer model.Close()
 
 	fmt.Printf("Model loaded successfully.\n")
+
+	// Print model stats
+	stats, err := model.Stats()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting stats: %v\n", err)
+	} else {
+		fmt.Printf("\n%s\n", stats)
+	}
+
 	fmt.Printf("Prompt: %s\n", *prompt)
 
 	// Generate text

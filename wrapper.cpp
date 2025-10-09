@@ -4,11 +4,18 @@
 #include "llama.cpp/common/common.h"
 #include "llama.cpp/common/sampling.h"
 #include "llama.cpp/common/speculative.h"
+#include "llama.cpp/common/chat.h"
+#include "llama.cpp/vendor/nlohmann/json.hpp"
 
 #include <string>
 #include <vector>
 #include <memory>
 #include <cstring>
+
+// CUDA backend header for GPU info
+#ifdef GGML_USE_CUDA
+#include "llama.cpp/ggml/include/ggml-cuda.h"
+#endif
 
 // Global error handling
 static std::string g_last_error;
@@ -52,6 +59,7 @@ extern bool goTokenCallback(uintptr_t handle, const char* token);
 // Separate wrappers for model and context
 struct llama_wrapper_model_t {
     llama_model* model;
+    int n_gpu_layers;  // Number of GPU layers requested (for stats reporting)
 };
 
 struct llama_wrapper_context_t {
@@ -96,6 +104,23 @@ static struct llama_context_params convert_context_params(llama_wrapper_model_pa
     ctx_params.n_threads = params.n_threads > 0 ? params.n_threads : 4;
     ctx_params.n_threads_batch = params.n_threads_batch > 0 ? params.n_threads_batch : ctx_params.n_threads;
     ctx_params.embeddings = params.embeddings;
+
+    // Set KV cache quantization type
+    if (params.kv_cache_type != nullptr) {
+        std::string cache_type(params.kv_cache_type);
+        if (cache_type == "f16") {
+            ctx_params.type_k = GGML_TYPE_F16;
+            ctx_params.type_v = GGML_TYPE_F16;
+        } else if (cache_type == "q8_0") {
+            ctx_params.type_k = GGML_TYPE_Q8_0;
+            ctx_params.type_v = GGML_TYPE_Q8_0;
+        } else if (cache_type == "q4_0") {
+            ctx_params.type_k = GGML_TYPE_Q4_0;
+            ctx_params.type_v = GGML_TYPE_Q4_0;
+        }
+        // If unrecognized, leave as default (f16)
+    }
+
     return ctx_params;
 }
 
@@ -120,6 +145,9 @@ void* llama_wrapper_model_load(const char* model_path, llama_wrapper_model_param
         // Create wrapper (model only, no context)
         auto wrapper = new llama_wrapper_model_t();
         wrapper->model = model;
+        // Store n_gpu_layers for stats reporting
+        // If -1 was passed (meaning "use default"), llama.cpp uses 999 layers
+        wrapper->n_gpu_layers = (params.n_gpu_layers == -1) ? 999 : params.n_gpu_layers;
 
         return wrapper;
     } catch (const std::exception& e) {
@@ -954,6 +982,291 @@ int llama_wrapper_get_cached_token_count(void* ctx) {
 
     auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
     return static_cast<int>(wrapper->cached_tokens.size());
+}
+
+// Get the chat template from model metadata
+// Returns nullptr if no template is available
+const char* llama_wrapper_get_chat_template(void* model) {
+    if (!model) {
+        return nullptr;
+    }
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+
+    // Get default chat template (name = nullptr)
+    const char* tmpl = llama_model_chat_template(model_wrapper->model, nullptr);
+
+    return tmpl;  // May be nullptr if model has no template
+}
+
+// Apply chat template to messages
+// Returns allocated string with formatted prompt (caller must free with llama_wrapper_free_result)
+// Returns nullptr on error
+char* llama_wrapper_apply_chat_template(const char* tmpl, const char** roles, const char** contents, int n_messages, bool add_assistant) {
+    if (!tmpl || !roles || !contents || n_messages < 0) {
+        g_last_error = "Invalid parameters for chat template application";
+        return nullptr;
+    }
+
+    try {
+        // Build array of llama_chat_message structs
+        std::vector<llama_chat_message> messages;
+        messages.reserve(n_messages);
+
+        for (int i = 0; i < n_messages; i++) {
+            if (!roles[i] || !contents[i]) {
+                g_last_error = "Role or content cannot be null";
+                return nullptr;
+            }
+            messages.push_back({roles[i], contents[i]});
+        }
+
+        // Start with a reasonable buffer size (8KB)
+        std::vector<char> buffer(8192);
+
+        // Try to apply template
+        int32_t result_len = llama_chat_apply_template(
+            tmpl,
+            messages.data(),
+            n_messages,
+            add_assistant,
+            buffer.data(),
+            buffer.size()
+        );
+
+        // If buffer was too small, resize and retry
+        if (result_len > (int32_t)buffer.size()) {
+            buffer.resize(result_len);
+            result_len = llama_chat_apply_template(
+                tmpl,
+                messages.data(),
+                n_messages,
+                add_assistant,
+                buffer.data(),
+                buffer.size()
+            );
+        }
+
+        // Check for errors
+        if (result_len < 0) {
+            g_last_error = "Failed to apply chat template (template detection or application error)";
+            return nullptr;
+        }
+
+        // Allocate result and copy
+        char* c_result = (char*)malloc(result_len + 1);
+        if (c_result) {
+            memcpy(c_result, buffer.data(), result_len);
+            c_result[result_len] = '\0';
+        } else {
+            g_last_error = "Failed to allocate memory for chat template result";
+            return nullptr;
+        }
+
+        return c_result;
+    } catch (const std::exception& e) {
+        g_last_error = "Exception during chat template application: " + std::string(e.what());
+        return nullptr;
+    }
+}
+
+// Parse model output to extract reasoning/thinking content
+// Returns NULL on error. Free result with llama_wrapper_free_parsed_message()
+llama_wrapper_parsed_message* llama_wrapper_parse_reasoning(
+    const char* text,
+    bool is_partial,
+    llama_wrapper_reasoning_format format,
+    int chat_format
+) {
+    if (!text) {
+        g_last_error = "Text cannot be null for reasoning parsing";
+        return nullptr;
+    }
+
+    try {
+        // Configure syntax for parsing
+        common_chat_syntax syntax;
+        syntax.format = static_cast<common_chat_format>(chat_format);
+        syntax.reasoning_format = static_cast<common_reasoning_format>(format);
+        syntax.reasoning_in_content = false;  // Extract to separate field for streaming
+        syntax.thinking_forced_open = false;
+        syntax.parse_tool_calls = false;  // Don't need tool parsing for this use case
+
+        // Parse the text
+        common_chat_msg msg = common_chat_parse(std::string(text), is_partial, syntax);
+
+        // Allocate result struct
+        auto* result = new llama_wrapper_parsed_message;
+        result->content = strdup(msg.content.c_str());
+        result->reasoning_content = msg.reasoning_content.empty()
+            ? nullptr
+            : strdup(msg.reasoning_content.c_str());
+
+        return result;
+    } catch (const std::exception& e) {
+        g_last_error = "Exception during reasoning parsing: " + std::string(e.what());
+        return nullptr;
+    }
+}
+
+void llama_wrapper_free_parsed_message(llama_wrapper_parsed_message* msg) {
+    if (!msg) return;
+
+    if (msg->content) {
+        free(const_cast<char*>(msg->content));
+    }
+    if (msg->reasoning_content) {
+        free(const_cast<char*>(msg->reasoning_content));
+    }
+    delete msg;
+}
+
+void* llama_wrapper_chat_templates_init(void* model, const char* template_override) {
+    if (!model) return nullptr;
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+    std::string tmpl_override = template_override ? template_override : "";
+
+    auto templates = common_chat_templates_init(model_wrapper->model, tmpl_override);
+    return templates.release();  // Transfer ownership
+}
+
+void llama_wrapper_chat_templates_free(void* templates) {
+    if (!templates) return;
+    common_chat_templates_free(static_cast<common_chat_templates*>(templates));
+}
+
+int llama_wrapper_chat_templates_get_format(void* templates) {
+    if (!templates) return 0;  // COMMON_CHAT_FORMAT_CONTENT_ONLY = 0
+
+    auto tmpl = static_cast<common_chat_templates*>(templates);
+
+    try {
+        // Apply with minimal dummy messages just to trigger format detection
+        common_chat_templates_inputs inputs;
+        inputs.use_jinja = true;
+        inputs.add_generation_prompt = true;
+
+        // Create a minimal dummy message to satisfy template application
+        common_chat_msg dummy_msg;
+        dummy_msg.role = "user";
+        dummy_msg.content = "test";  // Non-empty to avoid potential issues
+        inputs.messages.push_back(dummy_msg);
+
+        auto params = common_chat_templates_apply(tmpl, inputs);
+        return static_cast<int>(params.format);
+    } catch (const std::exception& e) {
+        // If template application fails, return CONTENT_ONLY as fallback
+        g_last_error = "Format detection failed: " + std::string(e.what());
+        return 0;  // COMMON_CHAT_FORMAT_CONTENT_ONLY
+    }
+}
+
+// Get model metadata string value by key
+const char* llama_wrapper_model_meta_string(void* model, const char* key) {
+    if (!model || !key) return nullptr;
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+
+    // Use llama.cpp's metadata API with buffer
+    static char buffer[2048];  // Static buffer for metadata strings
+    int32_t result = llama_model_meta_val_str(model_wrapper->model, key, buffer, sizeof(buffer));
+
+    if (result < 0) {
+        return nullptr;  // Key doesn't exist
+    }
+
+    return buffer;
+}
+
+// Get count of metadata key-value pairs
+int llama_wrapper_model_meta_count(void* model) {
+    if (!model) return 0;
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+    return llama_model_meta_count(model_wrapper->model);
+}
+
+// Get number of CUDA devices
+int llama_wrapper_get_gpu_count() {
+#ifdef GGML_USE_CUDA
+    return ggml_backend_cuda_get_device_count();
+#else
+    return 0;
+#endif
+}
+
+// Get GPU device information
+bool llama_wrapper_get_gpu_info(int device_id, llama_wrapper_gpu_info* info) {
+    if (!info) return false;
+
+#ifdef GGML_USE_CUDA
+    int count = ggml_backend_cuda_get_device_count();
+    if (device_id < 0 || device_id >= count) return false;
+
+    // Get device description
+    ggml_backend_cuda_get_device_description(device_id, info->device_name, sizeof(info->device_name));
+    info->device_id = device_id;
+
+    // Get memory info
+    size_t free_mem, total_mem;
+    ggml_backend_cuda_get_device_memory(device_id, &free_mem, &total_mem);
+    info->free_memory_mb = free_mem / (1024 * 1024);
+    info->total_memory_mb = total_mem / (1024 * 1024);
+
+    return true;
+#else
+    return false;
+#endif
+}
+
+// Get runtime information about model and context
+void llama_wrapper_get_runtime_info(void* model, void* ctx, const char* kv_cache_type, llama_wrapper_runtime_info* info) {
+    if (!model || !info) return;
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+
+    // Get layer counts (llama.cpp uses singular "layer" not "layers")
+    info->total_layers = llama_model_n_layer(model_wrapper->model);
+    // GPU layers loaded is minimum of requested and total layers
+    // (can't load more layers than the model has)
+    info->gpu_layers = std::min(model_wrapper->n_gpu_layers, info->total_layers);
+
+    if (ctx) {
+        auto ctx_wrapper = static_cast<llama_wrapper_context_t*>(ctx);
+        info->n_ctx = llama_n_ctx(ctx_wrapper->ctx);
+        info->n_batch = llama_n_batch(ctx_wrapper->ctx);
+
+        // Calculate KV cache size properly accounting for GQA/MQA
+        // Formula: 2 * n_ctx * (head_dim * n_head_kv) * n_layers * bytes_per_element
+        int n_embd = llama_model_n_embd(model_wrapper->model);
+        int n_head = llama_model_n_head(model_wrapper->model);
+        int n_head_kv = llama_model_n_head_kv(model_wrapper->model);
+        int head_dim = n_embd / n_head;
+
+        // Determine element size based on quantization type
+        float bytes_per_element = 2.0f;  // Default f16
+
+        if (kv_cache_type) {
+            std::string cache_type(kv_cache_type);
+            if (cache_type == "f16") {
+                bytes_per_element = 2.0f;
+            } else if (cache_type == "q8_0") {
+                bytes_per_element = 1.125f;  // ~1 byte + overhead
+            } else if (cache_type == "q4_0") {
+                bytes_per_element = 0.625f;  // ~0.5 bytes + overhead
+            }
+        }
+
+        // K and V cache: n_ctx * head_dim * n_head_kv * 2 (K+V) * n_layers * element_size
+        long long cache_bytes = (long long)info->n_ctx * head_dim * n_head_kv * 2LL * info->total_layers * bytes_per_element;
+        info->kv_cache_size_mb = cache_bytes / (1024 * 1024);
+    } else {
+        // No context - use defaults or zeros
+        info->n_ctx = 0;
+        info->n_batch = 0;
+        info->kv_cache_size_mb = 0;
+    }
 }
 
 } // extern "C"
