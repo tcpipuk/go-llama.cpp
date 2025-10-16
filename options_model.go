@@ -313,3 +313,56 @@ func WithKVCacheType(cacheType string) ModelOption {
 		}
 	}
 }
+
+// WithParallel sets the number of parallel sequences for batch processing.
+//
+// This option controls how many independent sequences can be processed
+// simultaneously in a single batch. Higher values enable larger batch sizes
+// for operations like GetEmbeddingsBatch() but consume more VRAM.
+//
+// For embedding models, the library defaults to n_parallel=8 if not explicitly
+// set. This option allows tuning this value for your specific VRAM constraints
+// and batch sizes.
+//
+// VRAM usage scales approximately as:
+//
+//	base_model_size + (n_parallel × context_size × kv_cache_bytes)
+//
+// For example, a 4B Q8 embedding model with 8192 context and q8_0 cache:
+//   - n_parallel=8: ~12 GB VRAM
+//   - n_parallel=4: ~8 GB VRAM
+//   - n_parallel=2: ~6 GB VRAM
+//   - n_parallel=1: ~5 GB VRAM (disables batch processing)
+//
+// Trade-offs:
+//   - Lower values: Less VRAM usage, slower batch processing, smaller max batch size
+//   - Higher values: More VRAM usage, faster batch processing, larger max batch size
+//
+// Default: 1 for generation models, 8 for embedding models (auto-set)
+//
+// Examples:
+//
+//	// Use default (8 for embeddings, 1 for generation)
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithEmbeddings(),
+//	)
+//
+//	// Tune down for large embedding model with limited VRAM
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithEmbeddings(),
+//	    llama.WithParallel(4),
+//	)
+//
+//	// Single sequence (minimal VRAM, no batching)
+//	model, err := llama.LoadModel("model.gguf",
+//	    llama.WithEmbeddings(),
+//	    llama.WithParallel(1),
+//	)
+func WithParallel(n int) ModelOption {
+	return func(c *modelConfig) {
+		if n < 1 {
+			n = 1
+		}
+		c.nParallel = n
+	}
+}

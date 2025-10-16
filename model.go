@@ -89,7 +89,7 @@ type modelConfig struct {
 	gpuLayers     int
 	threads       int
 	threadsBatch  int
-	nParallel     int    // Number of parallel sequences (for batch embeddings)
+	nParallel     int // Number of parallel sequences (for batch embeddings)
 	f16Memory     bool
 	mlock         bool
 	mmap          bool
@@ -160,8 +160,8 @@ var defaultModelConfig = modelConfig{
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
-	threadsBatch:  0,  // 0 means use same as threads (set in wrapper)
-	nParallel:     1,  // 1 for generation, auto-set higher for embeddings
+	threadsBatch:  0, // 0 means use same as threads (set in wrapper)
+	nParallel:     1, // 1 for generation, auto-set higher for embeddings
 	f16Memory:     false,
 	mlock:         false,
 	mmap:          true,

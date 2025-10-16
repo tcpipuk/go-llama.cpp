@@ -236,6 +236,32 @@ var _ = Describe("LoadModel", func() {
 			Expect(embeddings).NotTo(BeEmpty())
 		})
 
+		It("should apply WithParallel option", Label("integration"), func() {
+			// This test needs an embedding model to test parallel sequences
+			embeddingModelPath := os.Getenv("TEST_EMBEDDING_MODEL")
+			if embeddingModelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set")
+			}
+
+			// Test with n_parallel=4 (lower than default 8 for embeddings)
+			model, err := llama.LoadModel(embeddingModelPath,
+				llama.WithEmbeddings(),
+				llama.WithParallel(4),
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(model).NotTo(BeNil())
+			defer model.Close()
+
+			// Verify parallel sequences work with batch embeddings
+			texts := []string{"Hello", "World", "Test", "Batch"}
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(embeddings).To(HaveLen(4))
+			for _, emb := range embeddings {
+				Expect(emb).NotTo(BeEmpty())
+			}
+		})
+
 		It("should apply multiple options together", Label("integration"), func() {
 			model, err := llama.LoadModel(modelPath,
 				llama.WithContext(4096),
