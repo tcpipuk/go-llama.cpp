@@ -89,6 +89,7 @@ type modelConfig struct {
 	gpuLayers     int
 	threads       int
 	threadsBatch  int
+	nParallel     int    // Number of parallel sequences (for batch embeddings)
 	f16Memory     bool
 	mlock         bool
 	mmap          bool
@@ -159,7 +160,8 @@ var defaultModelConfig = modelConfig{
 	batchSize:     512,
 	gpuLayers:     -1, // Offload all layers to GPU by default (falls back to CPU if unavailable)
 	threads:       runtime.NumCPU(),
-	threadsBatch:  0, // 0 means use same as threads (set in wrapper)
+	threadsBatch:  0,  // 0 means use same as threads (set in wrapper)
+	nParallel:     1,  // 1 for generation, auto-set higher for embeddings
 	f16Memory:     false,
 	mlock:         false,
 	mmap:          true,
@@ -289,6 +291,12 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		opt(&config)
 	}
 
+	// Auto-set nParallel for embeddings if not explicitly configured
+	// Use 8 parallel sequences for efficient batch embedding processing
+	if config.embeddings && config.nParallel == 1 {
+		config.nParallel = 8
+	}
+
 	// Convert Go config to C struct for model loading
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
@@ -317,6 +325,7 @@ func LoadModel(path string, opts ...ModelOption) (*Model, error) {
 		n_gpu_layers:    C.int(config.gpuLayers),
 		n_threads:       C.int(config.threads),
 		n_threads_batch: C.int(config.threadsBatch),
+		n_parallel:      C.int(config.nParallel),
 		f16_memory:      C.bool(config.f16Memory),
 		mlock:           C.bool(config.mlock),
 		mmap:            C.bool(config.mmap),

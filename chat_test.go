@@ -18,9 +18,9 @@ var _ = Describe("Chat API", func() {
 
 	BeforeEach(func() {
 		// Get test model path from environment
-		testModelPath = os.Getenv("TEST_MODEL")
+		testModelPath = os.Getenv("TEST_CHAT_MODEL")
 		if testModelPath == "" {
-			Skip("TEST_MODEL environment variable not set")
+			Skip("TEST_CHAT_MODEL environment variable not set")
 		}
 
 		var err error

@@ -153,3 +153,98 @@ func (m *Model) GetEmbeddings(text string) ([]float32, error) {
 
 	return result, nil
 }
+
+// GetEmbeddingsBatch computes embeddings for multiple texts efficiently.
+//
+// This method processes multiple texts in a single batch operation, which is
+// significantly more efficient than calling GetEmbeddings repeatedly. The model
+// must be loaded with WithEmbeddings() to use this method.
+//
+// Batch processing works by:
+//   - Tokenising all texts upfront
+//   - Processing multiple sequences in parallel where possible
+//   - Automatically splitting into sub-batches if needed to respect memory limits
+//
+// Example:
+//
+//	model, _ := llama.LoadModel("model.gguf",
+//	    llama.WithEmbeddings(),
+//	    llama.WithBatch(256),  // Smaller batch for memory control
+//	)
+//	defer model.Close()
+//
+//	texts := []string{
+//	    "First document",
+//	    "Second document",
+//	    "Third document",
+//	}
+//	embeddings, _ := model.GetEmbeddingsBatch(texts)
+//	// embeddings[i] contains the embedding for texts[i]
+func (m *Model) GetEmbeddingsBatch(texts []string) ([][]float32, error) {
+	m.mu.RLock() // Read lock to check closed state
+	defer m.mu.RUnlock()
+
+	if m.closed {
+		return nil, fmt.Errorf("model is closed")
+	}
+
+	if len(texts) == 0 {
+		return nil, fmt.Errorf("no texts provided")
+	}
+
+	// Acquire context from pool
+	ctx, err := m.pool.acquire()
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire context: %w", err)
+	}
+	defer m.pool.release(ctx)
+
+	// Get embedding dimension from model
+	nEmbd := int(C.llama_wrapper_model_n_embd(m.modelPtr))
+	if nEmbd <= 0 {
+		return nil, fmt.Errorf("invalid embedding dimension: %d", nEmbd)
+	}
+
+	// Convert Go strings to C strings
+	cTexts := make([]*C.char, len(texts))
+	for i, text := range texts {
+		cTexts[i] = C.CString(text)
+	}
+	defer func() {
+		for i := range cTexts {
+			C.free(unsafe.Pointer(cTexts[i]))
+		}
+	}()
+
+	// Allocate output buffer: n_texts * n_embd floats
+	outputSize := len(texts) * nEmbd
+	cEmbeddings := make([]C.float, outputSize)
+
+	// Call C batch function
+	count := C.llama_wrapper_embeddings_batch(
+		ctx.ptr,
+		(**C.char)(unsafe.Pointer(&cTexts[0])),
+		C.int(len(texts)),
+		&cEmbeddings[0],
+		C.int(nEmbd),
+	)
+
+	if count < 0 {
+		return nil, fmt.Errorf("batch embedding generation failed: %s", C.GoString(C.llama_wrapper_last_error()))
+	}
+
+	if int(count) != len(texts) {
+		return nil, fmt.Errorf("embedding count mismatch: expected %d, got %d", len(texts), count)
+	}
+
+	// Convert C float array to Go [][]float32
+	result := make([][]float32, len(texts))
+	for i := 0; i < len(texts); i++ {
+		result[i] = make([]float32, nEmbd)
+		for j := 0; j < nEmbd; j++ {
+			result[i][j] = float32(cEmbeddings[i*nEmbd+j])
+		}
+	}
+
+	return result, nil
+}

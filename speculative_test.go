@@ -28,9 +28,9 @@ var _ = Describe("Model.GenerateWithDraft", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -498,9 +498,9 @@ var _ = Describe("Model.GenerateWithDraftStream", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -738,9 +738,9 @@ var _ = Describe("Speculative Sampling Edge Cases", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 
 		var err error

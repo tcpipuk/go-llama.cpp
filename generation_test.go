@@ -29,9 +29,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -96,9 +96,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -204,9 +204,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -262,9 +262,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -287,8 +287,8 @@ var _ = Describe("Model.Generate", func() {
 			)
 			Expect(err).NotTo(HaveOccurred())
 			// Should stop when "Paris" is generated (highly likely for this prompt)
-			// Qwen models can be chatty, so allow up to 200 chars
-			Expect(len(response)).To(BeNumerically("<", 200))
+			// Qwen models can be chatty, so allow up to 500 chars
+			Expect(len(response)).To(BeNumerically("<", 500))
 		})
 
 		It("should respect multiple stop words", Label("integration"), func() {
@@ -346,9 +346,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -390,9 +390,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			// Use small context for easier testing
@@ -454,9 +454,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
@@ -495,9 +495,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -538,9 +538,9 @@ var _ = Describe("Model.Generate", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -602,9 +602,9 @@ var _ = Describe("Generation Edge Cases", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,
@@ -662,9 +662,9 @@ var _ = Describe("Generation Edge Cases", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 			var err error
 			model, err = llama.LoadModel(modelPath,

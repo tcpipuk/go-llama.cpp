@@ -1,6 +1,7 @@
 package llama_test
 
 import (
+	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,9 +32,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -84,9 +85,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -143,9 +144,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -186,9 +187,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -229,9 +230,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -260,9 +261,9 @@ var _ = Describe("Model.GetEmbeddings", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -328,9 +329,9 @@ var _ = Describe("Embedding Vector Properties", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -388,9 +389,9 @@ var _ = Describe("Embedding Vector Properties", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -455,9 +456,9 @@ var _ = Describe("Embedding Vector Properties", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -512,9 +513,9 @@ var _ = Describe("WithEmbeddings Option", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -563,9 +564,9 @@ var _ = Describe("WithEmbeddings Option", func() {
 		)
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 
 			var err error
@@ -597,9 +598,9 @@ var _ = Describe("WithEmbeddings Option", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -666,9 +667,9 @@ var _ = Describe("Embedding Edge Cases", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -704,9 +705,9 @@ var _ = Describe("Embedding Edge Cases", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -737,4 +738,157 @@ var _ = Describe("Embedding Edge Cases", func() {
 			Succeed()
 		})
 	})
+})
+
+var _ = Describe("Model.GetEmbeddingsBatch", func() {
+	Context("with embeddings enabled", func() {
+		var (
+			model     *llama.Model
+			modelPath string
+		)
+
+		BeforeEach(func() {
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
+			if modelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
+			}
+
+			var err error
+			model, err = llama.LoadModel(modelPath,
+				llama.WithEmbeddings(),
+				llama.WithBatch(256), // Smaller batch for memory control
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(model).NotTo(BeNil())
+		})
+
+		AfterEach(func() {
+			if model != nil {
+				model.Close()
+			}
+		})
+
+		It("should generate batch embeddings successfully", Label("integration"), func() {
+			texts := []string{"Hello world", "Test text", "Another sentence"}
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(embeddings).NotTo(BeNil())
+			Expect(len(embeddings)).To(Equal(3))
+		})
+
+		It("should return correct number of embeddings", Label("integration"), func() {
+			texts := []string{"First", "Second", "Third", "Fourth", "Fifth"}
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(embeddings)).To(Equal(len(texts)))
+		})
+
+		It("should have consistent dimensions across all embeddings", Label("integration"), func() {
+			texts := []string{"Short", "A much longer text with multiple words", "Medium length"}
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+
+			firstDim := len(embeddings[0])
+			for i, emb := range embeddings {
+				Expect(len(emb)).To(Equal(firstDim), "embedding %d should have same dimension", i)
+			}
+		})
+
+		It("should match single embedding results", Label("integration"), func() {
+			text := "Comparison text"
+
+			// Get single embedding
+			single, err := model.GetEmbeddings(text)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Get batch embedding
+			batch, err := model.GetEmbeddingsBatch([]string{text})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Should be nearly identical (tolerance for batch vs single processing differences)
+			Expect(len(batch)).To(Equal(1))
+			Expect(len(batch[0])).To(Equal(len(single)))
+			for i := range batch[0] {
+				Expect(batch[0][i]).To(BeNumerically("~", single[i], 0.0001))
+			}
+		})
+
+		It("should process large batches efficiently", Label("integration"), func() {
+			// Create 50 texts
+			texts := make([]string, 50)
+			for i := 0; i < 50; i++ {
+				texts[i] = fmt.Sprintf("Test text number %d with some content", i)
+			}
+
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(embeddings)).To(Equal(50))
+		})
+
+		It("should handle mixed text lengths", Label("integration"), func() {
+			texts := []string{
+				"Short",
+				"This is a medium length sentence with several words in it.",
+				"A",
+				"This is an even longer piece of text that contains multiple sentences. " +
+					"It should test how the batch processing handles variable input sizes. " +
+					"The embedding model should process all of these correctly.",
+			}
+
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(embeddings)).To(Equal(len(texts)))
+		})
+
+		It("should handle unicode text in batches", Label("integration"), func() {
+			texts := []string{
+				"Hello world",
+				"你好世界",
+				"Привет мир",
+				"🌍 🌎 🌏",
+			}
+
+			embeddings, err := model.GetEmbeddingsBatch(texts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(embeddings)).To(Equal(4))
+		})
+	})
+
+	Context("with error conditions", func() {
+		var (
+			model     *llama.Model
+			modelPath string
+		)
+
+		BeforeEach(func() {
+			modelPath = os.Getenv("TEST_EMBEDDING_MODEL")
+			if modelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
+			}
+
+			var err error
+			model, err = llama.LoadModel(modelPath, llama.WithEmbeddings())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			if model != nil {
+				model.Close()
+			}
+		})
+
+		It("should error on empty text array", Label("integration"), func() {
+			_, err := model.GetEmbeddingsBatch([]string{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("no texts provided"))
+		})
+
+		It("should error when model is closed", Label("integration"), func() {
+			model.Close()
+			_, err := model.GetEmbeddingsBatch([]string{"Test"})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("model is closed"))
+		})
+	})
+
 })

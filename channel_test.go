@@ -30,9 +30,9 @@ var _ = Describe("Model.GenerateChannel", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 
 		var err error
@@ -695,9 +695,9 @@ var _ = Describe("Model.GenerateWithDraftChannel", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 
 		var err error
@@ -1018,9 +1018,9 @@ var _ = Describe("Channel Streaming Edge Cases", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 
 		var err error

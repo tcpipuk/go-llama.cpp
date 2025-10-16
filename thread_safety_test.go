@@ -25,9 +25,9 @@ var _ = Describe("Model Thread Safety", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -249,9 +249,9 @@ var _ = Describe("Pool Pattern for Thread Safety", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -605,9 +605,9 @@ var _ = Describe("Callback Thread Safety", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -757,9 +757,9 @@ var _ = Describe("Global Error State Thread Safety", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -860,9 +860,9 @@ var _ = Describe("Resource Management Under Concurrency", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -1078,9 +1078,9 @@ var _ = Describe("Race Detection", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -1266,9 +1266,9 @@ var _ = Describe("Documentation Examples", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 

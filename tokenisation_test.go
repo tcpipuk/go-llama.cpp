@@ -20,9 +20,9 @@ var _ = Describe("Model.Tokenize", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 		var err error
 		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
@@ -232,9 +232,9 @@ var _ = Describe("Tokenization Output Validation", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 		var err error
 		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))
@@ -337,9 +337,9 @@ var _ = Describe("Tokenization Edge Cases", func() {
 	)
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 		var err error
 		model, err = llama.LoadModel(modelPath, llama.WithContext(2048))

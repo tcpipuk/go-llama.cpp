@@ -14,6 +14,7 @@ typedef struct {
     int n_gpu_layers;       // Number of GPU layers
     int n_threads;          // Number of threads for generation (per token)
     int n_threads_batch;    // Number of threads for batch processing (prompt)
+    int n_parallel;         // Number of parallel sequences (for batch embeddings)
     bool f16_memory;        // Use F16 for memory
     bool mlock;            // Memory lock
     bool mmap;             // Memory mapping
@@ -105,6 +106,14 @@ int llama_wrapper_tokenize(void* ctx, const char* text, int* tokens, int max_tok
 // Embeddings
 int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int max_embeddings);
 
+// Batch embeddings - process multiple texts efficiently
+// texts: array of text strings to embed
+// n_texts: number of texts in the array
+// embeddings: output buffer (must have space for n_texts * n_embd floats)
+// n_embd: embedding dimension from model (llama_model_n_embd)
+// Returns number of embeddings generated (should equal n_texts), or -1 on error
+int llama_wrapper_embeddings_batch(void* ctx, const char** texts, int n_texts, float* embeddings, int n_embd);
+
 // Utility functions
 void llama_wrapper_free_result(char* result);
 const char* llama_wrapper_last_error();
@@ -112,6 +121,9 @@ int llama_wrapper_get_cached_token_count(void* ctx);
 
 // Get model's native maximum context length
 int llama_wrapper_get_model_context_length(void* model);
+
+// Get model's embedding dimension
+int llama_wrapper_model_n_embd(void* model);
 
 // Chat template support
 const char* llama_wrapper_get_chat_template(void* model);

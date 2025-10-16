@@ -103,6 +103,7 @@ static struct llama_context_params convert_context_params(llama_wrapper_model_pa
     ctx_params.n_batch = params.n_batch > 0 ? params.n_batch : 512;
     ctx_params.n_threads = params.n_threads > 0 ? params.n_threads : 4;
     ctx_params.n_threads_batch = params.n_threads_batch > 0 ? params.n_threads_batch : ctx_params.n_threads;
+    ctx_params.n_seq_max = params.n_parallel > 0 ? params.n_parallel : 1;
     ctx_params.embeddings = params.embeddings;
 
     // Set KV cache quantization type
@@ -220,6 +221,16 @@ int llama_wrapper_get_model_context_length(void* model) {
 
     // Return model's training context, or reasonable fallback
     return (n_ctx_train > 0) ? n_ctx_train : 32768;
+}
+
+// Get model's embedding dimension
+int llama_wrapper_model_n_embd(void* model) {
+    if (!model) {
+        return -1;  // Error if model is null
+    }
+
+    auto model_wrapper = static_cast<llama_wrapper_model_t*>(model);
+    return llama_model_n_embd(model_wrapper->model);
 }
 
 // Helper function to find common prefix length between two token vectors
@@ -954,8 +965,8 @@ int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int
             llama_batch_free(batch);
         }
 
-        // Get embeddings using the correct function call
-        const float* embd = llama_get_embeddings(wrapper->ctx);
+        // Get embeddings from sequence 0 (works for both single and multi-sequence contexts)
+        const float* embd = llama_get_embeddings_seq(wrapper->ctx, 0);
         if (!embd) {
             g_last_error = "Failed to get embeddings from context";
             return -1;
@@ -970,6 +981,130 @@ int llama_wrapper_embeddings(void* ctx, const char* text, float* embeddings, int
         return count;
     } catch (const std::exception& e) {
         g_last_error = "Exception during embedding generation: " + std::string(e.what());
+        return -1;
+    }
+}
+
+int llama_wrapper_embeddings_batch(void* ctx, const char** texts, int n_texts, float* embeddings, int n_embd) {
+    if (!ctx || !texts || !embeddings || n_texts <= 0 || n_embd <= 0) {
+        g_last_error = "Invalid parameters for batch embeddings";
+        return -1;
+    }
+
+    auto wrapper = static_cast<llama_wrapper_context_t*>(ctx);
+
+    try {
+        // Clear KV cache to ensure clean state
+        llama_memory_clear(llama_get_memory(wrapper->ctx), true);
+
+        // Tokenize all texts
+        std::vector<std::vector<llama_token>> all_tokens;
+        all_tokens.reserve(n_texts);
+
+        for (int i = 0; i < n_texts; i++) {
+            if (!texts[i]) {
+                g_last_error = "Null text in batch at index " + std::to_string(i);
+                return -1;
+            }
+            std::vector<llama_token> tokens = common_tokenize(wrapper->ctx, texts[i], true, true);
+            if (tokens.empty()) {
+                g_last_error = "Failed to tokenize text at index " + std::to_string(i);
+                return -1;
+            }
+            all_tokens.push_back(std::move(tokens));
+        }
+
+        // Get batch size and max sequences
+        int n_batch = llama_n_batch(wrapper->ctx);
+        int n_seq_max = llama_n_seq_max(wrapper->ctx);
+
+        // Initialize batch
+        llama_batch batch = llama_batch_init(n_batch, 0, n_seq_max);
+
+        int embeddings_stored = 0;  // Track how many embeddings we've extracted
+
+        // Process texts in batches
+        int s = 0;  // Current sequence ID in batch
+        for (int k = 0; k < n_texts; k++) {
+            const auto& tokens = all_tokens[k];
+            int n_tokens = tokens.size();
+
+            // Check if adding this text would exceed batch size or sequence limit
+            if (batch.n_tokens + n_tokens > n_batch || s >= n_seq_max) {
+                // Decode current batch
+                if (llama_decode(wrapper->ctx, batch) != 0) {
+                    llama_batch_free(batch);
+                    g_last_error = "Failed to decode batch";
+                    return -1;
+                }
+
+                // Extract embeddings for all sequences in this batch
+                for (int seq = 0; seq < s; seq++) {
+                    const float* embd = llama_get_embeddings_seq(wrapper->ctx, seq);
+                    if (!embd) {
+                        llama_batch_free(batch);
+                        g_last_error = "Failed to get embeddings for sequence " + std::to_string(seq);
+                        return -1;
+                    }
+                    // Copy embedding to output buffer
+                    memcpy(embeddings + embeddings_stored * n_embd, embd, n_embd * sizeof(float));
+                    embeddings_stored++;
+                }
+
+                // Clear KV cache for processed sequences before resetting
+                for (int seq = 0; seq < s; seq++) {
+                    llama_memory_seq_rm(llama_get_memory(wrapper->ctx), seq, -1, -1);
+                }
+
+                // Reset for next batch
+                s = 0;
+                common_batch_clear(batch);
+            }
+
+            // Add tokens for this text with unique seq_id
+            for (int j = 0; j < n_tokens; j++) {
+                // Position is relative to this sequence (starts at 0)
+                // All tokens need logits for embeddings
+                common_batch_add(batch, tokens[j], j, { s }, true);
+            }
+
+            s++;  // Move to next sequence ID
+        }
+
+        // Process final batch if there are remaining sequences
+        if (s > 0) {
+            if (llama_decode(wrapper->ctx, batch) != 0) {
+                llama_batch_free(batch);
+                g_last_error = "Failed to decode final batch";
+                return -1;
+            }
+
+            // Extract embeddings for remaining sequences
+            for (int seq = 0; seq < s; seq++) {
+                const float* embd = llama_get_embeddings_seq(wrapper->ctx, seq);
+                if (!embd) {
+                    llama_batch_free(batch);
+                    g_last_error = "Failed to get embeddings for final sequence " + std::to_string(seq);
+                    return -1;
+                }
+                memcpy(embeddings + embeddings_stored * n_embd, embd, n_embd * sizeof(float));
+                embeddings_stored++;
+            }
+        }
+
+        llama_batch_free(batch);
+
+        // Verify we got all embeddings
+        if (embeddings_stored != n_texts) {
+            g_last_error = "Embedding count mismatch: expected " + std::to_string(n_texts) +
+                          ", got " + std::to_string(embeddings_stored);
+            return -1;
+        }
+
+        return embeddings_stored;
+
+    } catch (const std::exception& e) {
+        g_last_error = "Exception during batch embedding generation: " + std::string(e.what());
         return -1;
     }
 }

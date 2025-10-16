@@ -27,8 +27,9 @@ jobs:
       CMAKE_CUDA_COMPILER_LAUNCHER: sccache
       # Enable GitHub Actions cache backend
       SCCACHE_GHA_ENABLED: "true"
-      # Test model for integration tests
-      TEST_MODEL: Qwen3-0.6B-Q8_0.gguf
+      # Test models for integration tests
+      TEST_CHAT_MODEL: Qwen3-0.6B-Q8_0.gguf
+      TEST_EMBEDDING_MODEL: Qwen3-Embedding-0.6B-Q8_0.gguf
       # Suppress verbose llama.cpp logs (set to "info" or "debug" for debugging)
       LLAMA_LOG: error
     steps:
@@ -41,11 +42,13 @@ jobs:
         id: versions
         uses: https://git.tomfos.tr/actions/detect-versions@v1
 
-      - name: Cache test model
+      - name: Cache test models
         uses: https://github.com/actions/cache@v4
         with:
-          path: Qwen3-0.6B-Q8_0.gguf
-          key: test-model-qwen3-0.6b-q8
+          path: |
+            Qwen3-0.6B-Q8_0.gguf
+            Qwen3-Embedding-0.6B-Q8_0.gguf
+          key: test-models-qwen3-0.6b-q8-v1
 
       - name: Cache dependencies
         uses: https://github.com/actions/cache@v4
@@ -80,10 +83,13 @@ jobs:
           echo "=== LD_LIBRARY_PATH ==="
           echo "$LD_LIBRARY_PATH"
 
-      - name: Download test model
+      - name: Download test models
         run: |
           if [ ! -f Qwen3-0.6B-Q8_0.gguf ]; then
             wget -q https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf
+          fi
+          if [ ! -f Qwen3-Embedding-0.6B-Q8_0.gguf ]; then
+            wget -q https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
           fi
 
       - name: Run tests

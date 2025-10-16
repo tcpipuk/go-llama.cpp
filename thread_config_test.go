@@ -13,9 +13,9 @@ var _ = Describe("Thread Configuration", Label("thread-config"), func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration tests")
+			Skip("TEST_CHAT_MODEL not set - skipping integration tests")
 		}
 	})
 

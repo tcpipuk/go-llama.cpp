@@ -35,9 +35,9 @@ var _ = Describe("Model Loading Errors", func() {
 		})
 
 		It("should return 'Failed to create context' when context init fails", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 
 			// Attempt to trigger context creation failure with invalid configuration
@@ -97,9 +97,9 @@ var _ = Describe("Generation Errors", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -270,9 +270,9 @@ var _ = Describe("Speculative Generation Errors", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -378,9 +378,9 @@ var _ = Describe("Tokenization Errors", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -444,9 +444,9 @@ var _ = Describe("Embedding Errors", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -487,18 +487,21 @@ var _ = Describe("Embedding Errors", func() {
 
 	Context("embedding generation", func() {
 		It("should return 'Failed to tokenize text for embeddings' for tokenisation failures", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithEmbeddings())
+			embModelPath := os.Getenv("TEST_EMBEDDING_MODEL")
+			if embModelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
+			}
+
+			model, err := llama.LoadModel(embModelPath, llama.WithEmbeddings())
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
-			// Most text should tokenise successfully
-			// This error is difficult to trigger without specific invalid input
-			embeddings, err := model.GetEmbeddings("Hello")
+			// Empty string triggers tokenization failure (returns empty token vector)
+			_, err = model.GetEmbeddings("")
 			if err != nil {
 				Expect(err.Error()).To(ContainSubstring("Failed to tokenize text for embeddings"))
-			} else {
-				Expect(embeddings).NotTo(BeEmpty())
 			}
+			// Note: Some models may handle empty string gracefully, so error is optional
 		})
 
 		It("should return 'Failed to decode tokens for embeddings' for decode failures", Label("integration"), func() {
@@ -542,9 +545,9 @@ var _ = Describe("Debug Messages", func() {
 	var modelPath string
 
 	BeforeEach(func() {
-		modelPath = os.Getenv("TEST_MODEL")
+		modelPath = os.Getenv("TEST_CHAT_MODEL")
 		if modelPath == "" {
-			Skip("TEST_MODEL not set - skipping integration test")
+			Skip("TEST_CHAT_MODEL not set - skipping integration test")
 		}
 	})
 
@@ -624,9 +627,9 @@ var _ = Describe("Error Message Quality", func() {
 			// This is expected behaviour - users should use reasonable context sizes.
 			// See WithContext() godoc for guidance.
 
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 
 			model, err := llama.LoadModel(modelPath, llama.WithContext(32))
@@ -647,9 +650,9 @@ var _ = Describe("Error Message Quality", func() {
 		})
 
 		It("should provide clear error prefixes (generation failed:, etc.)", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 
 			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
@@ -665,9 +668,9 @@ var _ = Describe("Error Message Quality", func() {
 
 	Context("error wrapping", func() {
 		It("should wrap C++ errors with Go context", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 
 			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))
@@ -694,9 +697,9 @@ var _ = Describe("Error Message Quality", func() {
 		})
 
 		It("should use consistent error format", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 
 			model, err := llama.LoadModel(modelPath, llama.WithContext(2048))

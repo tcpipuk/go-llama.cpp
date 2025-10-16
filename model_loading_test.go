@@ -19,9 +19,9 @@ var _ = Describe("LoadModel", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set - skipping integration test")
+				Skip("TEST_CHAT_MODEL not set - skipping integration test")
 			}
 		})
 
@@ -99,9 +99,9 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should handle paths with special characters", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 
 			// Test with path that might have spaces or special chars
@@ -111,9 +111,9 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should handle relative vs absolute paths", Label("integration"), func() {
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 
 			// Test that valid paths work regardless of format
@@ -128,9 +128,9 @@ var _ = Describe("LoadModel", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -219,7 +219,13 @@ var _ = Describe("LoadModel", func() {
 		})
 
 		It("should apply WithEmbeddings option", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithEmbeddings())
+			// This test needs an embedding model
+			embeddingModelPath := os.Getenv("TEST_EMBEDDING_MODEL")
+			if embeddingModelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set")
+			}
+
+			model, err := llama.LoadModel(embeddingModelPath, llama.WithEmbeddings())
 			Expect(err).NotTo(HaveOccurred())
 			Expect(model).NotTo(BeNil())
 			defer model.Close()
@@ -253,9 +259,9 @@ var _ = Describe("LoadModel", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -327,9 +333,9 @@ var _ = Describe("LoadModel", func() {
 		It("should return \"Failed to create context\" error", Label("integration"), func() {
 			// This is difficult to trigger without invalid configuration
 			// Test that error message format is correct when it does occur
-			modelPath := os.Getenv("TEST_MODEL")
+			modelPath := os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 
 			// Attempt to load with potentially problematic config
@@ -364,9 +370,9 @@ var _ = Describe("Model.Close", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -418,9 +424,9 @@ var _ = Describe("Model.Close", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -466,9 +472,9 @@ var _ = Describe("Model.Close", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -506,9 +512,9 @@ var _ = Describe("Model Finaliser", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
@@ -580,9 +586,9 @@ var _ = Describe("Model Finaliser", func() {
 		var modelPath string
 
 		BeforeEach(func() {
-			modelPath = os.Getenv("TEST_MODEL")
+			modelPath = os.Getenv("TEST_CHAT_MODEL")
 			if modelPath == "" {
-				Skip("TEST_MODEL not set")
+				Skip("TEST_CHAT_MODEL not set")
 			}
 		})
 
