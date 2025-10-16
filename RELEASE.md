@@ -217,24 +217,45 @@ EOF
 )"
 ```
 
-**Tag message**: Brief description with upstream link. For first release, include major features.
-For subsequent releases, keep it concise - just link and notable changes.
+**Tag message**: Check recent tags first for style (`git tag -n99 llama.cpp-b6724`), then
+highlight YOUR features in "Major features since..." (3-5 bullets) followed by brief upstream
+summary (1 line). First release uses "First tagged release with..." instead.
+
+**Subsequent releases** (most common):
 
 ```bash
 git tag -a llama.cpp-<tag> -m "$(cat <<'EOF'
+Update to llama.cpp b6780
+
+Upstream release: https://github.com/ggml-org/llama.cpp/releases/tag/b6780
+
+Major features since llama.cpp-b6724:
+- YOUR new feature with brief description
+- YOUR improvements or fixes
+- Configuration/test changes
+
+This release includes llama.cpp improvements: [brief 1-line summary].
+EOF
+)"
+```
+
+**First release**:
+
+```bash
+git tag -a llama.cpp-b6709 -m "$(cat <<'EOF'
 Update to llama.cpp b6709
 
 Upstream release: https://github.com/ggml-org/llama.cpp/releases/tag/b6709
 
 First tagged release with production-ready features:
-- Comprehensive test suite with almost 400 test cases and CI validation
-- 8 GPU acceleration backends covering NVIDIA, AMD, Intel, and Apple hardware
-- Thread-safe concurrent inference via dynamic context pooling
-- KV cache prefix reuse with GPU optimisations for conversation workloads
-- Well-organised codebase with comprehensive godoc comments
+- Major capability 1
+- Major capability 2
+- Major capability 3
 EOF
 )"
+```
 
+```bash
 git push origin main
 git push origin llama.cpp-<tag>
 ```
