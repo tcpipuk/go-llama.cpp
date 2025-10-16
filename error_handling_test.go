@@ -529,7 +529,12 @@ var _ = Describe("Embedding Errors", func() {
 		})
 
 		It("should handle embedding exceptions gracefully", Label("integration"), func() {
-			model, err := llama.LoadModel(modelPath, llama.WithEmbeddings())
+			embModelPath := os.Getenv("TEST_EMBEDDING_MODEL")
+			if embModelPath == "" {
+				Skip("TEST_EMBEDDING_MODEL not set - skipping integration test")
+			}
+
+			model, err := llama.LoadModel(embModelPath, llama.WithEmbeddings())
 			Expect(err).NotTo(HaveOccurred())
 			defer model.Close()
 
